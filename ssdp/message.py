@@ -26,8 +26,14 @@ class SSDPMessage:
     def _parse_request(self, request: str):
         rq = request.split(' ')
 
-        self.method = rq[0]
-        self.http_version = rq[2]
+        if rq[0] == 'HTTP/1.1':
+            self.is_response = True
+            self.http_version = rq[0]
+
+        else:
+            self.is_response = False
+            self.method = rq[0]
+            self.http_version = rq[2]
 
     def _parse_headers(self, headers: List[str]):
         self.headers = {}
