@@ -4,8 +4,14 @@ import struct
 
 from typing import Optional, Union, Text, Tuple
 
+from .message import SSDPMessage
+
 
 class SSDPProtocol(asyncio.DatagramProtocol):
+    """
+    Receive SSDP messages from the given multicast
+    """
+
     def __init__(self, multicast: str, port: int, ttl: int = 4):
         self.transport = None  # type: Optional[asyncio.transports.BaseTransport]
 
@@ -30,4 +36,6 @@ class SSDPProtocol(asyncio.DatagramProtocol):
         self.transport = None
 
     def datagram_received(self, data: Union[bytes, Text], addr: Tuple[str, int]) -> None:
-        print(addr, data)
+        msg = SSDPMessage(data.decode('utf-8'), addr)
+
+        print(repr(msg))
