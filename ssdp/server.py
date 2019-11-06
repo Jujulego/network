@@ -1,4 +1,5 @@
 import asyncio
+import socket
 
 from pyee import AsyncIOEventEmitter
 from typing import Optional
@@ -6,6 +7,10 @@ from utils import Address
 
 from .message import SSDPMessage
 from .protocol import SSDPProtocol
+
+REUSE_PORT = None
+if hasattr(socket, 'SO_REUSEPORT'):
+    REUSE_PORT = True
 
 
 class SSDPServer(AsyncIOEventEmitter):
@@ -36,7 +41,7 @@ class SSDPServer(AsyncIOEventEmitter):
             self._transport, self._protocol = await self._loop.create_datagram_endpoint(
                 self._protocol_factory,
                 local_addr=('0.0.0.0', self.multicast[1]),
-                reuse_address=True
+                reuse_address=True, reuse_port=REUSE_PORT
             )
 
             self.__started = True

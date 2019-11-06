@@ -17,5 +17,5 @@ if __name__ == '__main__':
     def message(msg, addr):
         print(addr, repr(msg))
 
-    asyncio.ensure_future(ssdp.start())
+    loop.run_until_complete(ssdp.start())
     loop.run_forever()

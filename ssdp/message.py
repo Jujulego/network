@@ -1,4 +1,5 @@
-from typing import Optional, Dict, List, Tuple
+from typing import Optional, Dict, List
+from utils import Address
 
 Headers = Dict[str, str]
 
@@ -69,7 +70,7 @@ class SSDPMessage:
         return self._gen_message()
 
     @property
-    def host(self) -> Optional[Tuple[str, int]]:
+    def host(self) -> Optional[Address]:
         host = self.headers.get('HOST')
 
         if host is None:
