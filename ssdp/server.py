@@ -2,18 +2,18 @@ import asyncio
 
 from pyee import AsyncIOEventEmitter
 from typing import Optional
+from utils import Address
 
 from .message import SSDPMessage
 from .protocol import SSDPProtocol
 
 
 class SSDPServer(AsyncIOEventEmitter):
-    def __init__(self, multicast: str, port: int, ttl: int = 4, loop: Optional[asyncio.AbstractEventLoop] = None):
+    def __init__(self, multicast: Address, ttl: int = 4, loop: Optional[asyncio.AbstractEventLoop] = None):
         super().__init__(loop or asyncio.get_event_loop())
 
         # - parameters
         self.multicast = multicast
-        self.port = port
         self.ttl = ttl
 
         # - internals
@@ -22,12 +22,12 @@ class SSDPServer(AsyncIOEventEmitter):
         self._protocol = None   # type: Optional[SSDPProtocol]
 
     # Methods
-    def _on_message(self, msg: SSDPMessage):
-        self.emit('message', msg)
+    def _on_message(self, msg: SSDPMessage, addr: Address):
+        self.emit('message', msg, addr)
 
     def _protocol_factory(self):
         return SSDPProtocol(
-            self.multicast, self.port, ttl=self.ttl,
+            self.multicast, ttl=self.ttl,
             on_message=self._on_message
         )
 
@@ -35,11 +35,23 @@ class SSDPServer(AsyncIOEventEmitter):
         if not self.__started:
             self._transport, self._protocol = await self._loop.create_datagram_endpoint(
                 self._protocol_factory,
-                local_addr=('0.0.0.0', self.port),
+                local_addr=('0.0.0.0', self.multicast[1]),
                 reuse_address=True
             )
 
             self.__started = True
+
+    def send(self, msg: SSDPMessage):
+        assert self.__started
+        self._protocol.send_message(msg)
+
+    def stop(self):
+        if self.__started:
+            self._protocol.close()
+
+            self._protocol = None
+            self._transport = None
+            self.__started = False
 
     # Properties
     @property
