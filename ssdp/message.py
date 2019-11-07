@@ -19,9 +19,10 @@ class SSDPMessage:
         else:
             self.is_response = is_response
             self.method = "" if is_response else method
+            self.http_version = "HTTP/1.1"
 
             self.headers = headers
-            if not self.headers.has('HOST'):
+            if 'HOST' not in self.headers:
                 self.headers['HOST'] = "239.255.255.250:1900"
 
     def __repr__(self):
@@ -58,7 +59,7 @@ class SSDPMessage:
 
     def _gen_request(self) -> str:
         return (
-            "{0[http_version]} 200 OK" if self.is_response else "{0[method]} * {0[http_version]}"
+            "{0.http_version} 200 OK" if self.is_response else "{0.method} * {0.http_version}"
         ).format(self)
 
     def _gen_headers(self) -> List[str]:

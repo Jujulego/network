@@ -50,6 +50,17 @@ class SSDPServer(AsyncIOEventEmitter):
         assert self.__started
         self._protocol.send_message(msg)
 
+    def search(self, st):
+        msg = SSDPMessage(
+            method='M-SEARCH',
+            headers={
+                'MAN': 'ssdp:discover',
+                'ST': st
+            }
+        )
+
+        self.send(msg)
+
     def stop(self):
         if self.__started:
             self._protocol.close()

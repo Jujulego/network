@@ -47,19 +47,26 @@ class SSDPProtocol(asyncio.DatagramProtocol):
     def connection_lost(self, exc: Optional[Exception]) -> None:
         self.transport = None
 
+        # logging
+        logger.info("Disconnected from %s:%d", self.multicast[0], self.multicast[1])
+
     def datagram_received(self, data: Union[bytes, Text], addr: Address) -> None:
         # logging
-        logger.debug("%s:%d => %s", addr[0], addr[1], data)
+        logger.debug("recv %s:%d => %s", addr[0], addr[1], data)
 
         if self.on_message is not None:
-            self.on_message(
-                SSDPMessage(message=data.decode('utf-8')), addr
-            )
+            self.on_message(SSDPMessage(message=data.decode('utf-8')), addr)
 
     def send_message(self, msg: SSDPMessage):
         assert self.transport is not None
-        self.transport.sendto(msg.message.encode())
+
+        data = msg.message.encode()
+        self.transport.sendto(data, self.multicast)
+
+        # logging
+        logger.debug("send %s", data)
 
     def close(self):
-        assert self.transport is not None
-        self.transport.close()
+        if self.transport is not None:
+            self.transport.close()
+            self.transport = None
