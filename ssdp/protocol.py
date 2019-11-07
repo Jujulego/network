@@ -42,17 +42,17 @@ class SSDPProtocol(asyncio.DatagramProtocol):
         sock.setsockopt(socket.IPPROTO_IP, socket.IP_TTL, self.ttl)
 
         # logging
-        logger.info("Connected to %s:%d", self.multicast[0], self.multicast[1])
+        logger.info(f'Connected to {self.multicast[0]}:{self.multicast[1]}')
 
     def connection_lost(self, exc: Optional[Exception]) -> None:
         self.transport = None
 
         # logging
-        logger.info("Disconnected from %s:%d", self.multicast[0], self.multicast[1])
+        logger.info(f'Disconnected from {self.multicast[0]}:{self.multicast[1]}')
 
     def datagram_received(self, data: Union[bytes, Text], addr: Address) -> None:
         # logging
-        logger.debug("recv %s:%d => %s", addr[0], addr[1], data)
+        logger.debug(f'recv {addr[0]}:{addr[1]} => {data}')
 
         if self.on_message is not None:
             self.on_message(SSDPMessage(message=data.decode('utf-8')), addr)
@@ -64,7 +64,7 @@ class SSDPProtocol(asyncio.DatagramProtocol):
         self.transport.sendto(data, self.multicast)
 
         # logging
-        logger.debug("send %s", data)
+        logger.debug(f'send {data}')
 
     def close(self):
         if self.transport is not None:

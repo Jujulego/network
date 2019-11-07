@@ -1,7 +1,7 @@
 import asyncio
 import logging
 
-from ssdp.server import SSDPServer
+from ssdp import SSDPServer
 
 # Parameters
 MULTICAST = ("239.255.255.250", 1900)

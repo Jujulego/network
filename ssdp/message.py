@@ -58,12 +58,10 @@ class SSDPMessage:
         return '\r\n'.join([self._gen_request(), *self._gen_headers()])
 
     def _gen_request(self) -> str:
-        return (
-            "{0.http_version} 200 OK" if self.is_response else "{0.method} * {0.http_version}"
-        ).format(self)
+        return f'{self.http_version} 200 OK' if self.is_response else f'{self.method} * {self.http_version}'
 
     def _gen_headers(self) -> List[str]:
-        return ['{}: {}'.format(n, v) for n, v in self.headers.items()]
+        return [f'{n}: {v}' for n, v in self.headers.items()]
 
     # Properties
     @property
