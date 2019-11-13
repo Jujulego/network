@@ -55,7 +55,7 @@ class SSDPMessage:
             self.headers[header[:dp].upper()] = header[dp+1:].strip()
 
     def _gen_message(self) -> str:
-        return '\r\n'.join([self._gen_request(), *self._gen_headers()])
+        return '\r\n'.join([self._gen_request(), *self._gen_headers()]) + '\r\n' * 2
 
     def _gen_request(self) -> str:
         return f'{self.http_version} 200 OK' if self.is_response else f'{self.method} * {self.http_version}'
@@ -105,6 +105,14 @@ class SSDPMessage:
     @nts.setter
     def nts(self, nts: str):
         self.headers['NTS'] = nts
+
+    @property
+    def usn(self) -> Optional[str]:
+        return self.headers.get('USN')
+
+    @usn.setter
+    def usn(self, usn: str):
+        self.headers['USN'] = usn
 
     # - M-SEARCH headers
     @property

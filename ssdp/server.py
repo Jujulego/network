@@ -30,6 +30,15 @@ class SSDPServer(AsyncIOEventEmitter):
     def _on_message(self, msg: SSDPMessage, addr: Address):
         self.emit('message', msg, addr)
 
+        if msg.method == 'NOTIFY':
+            self.emit('notify', msg, addr)
+
+        elif msg.method == 'M-SEARCH':
+            self.emit('search', msg, addr)
+
+        elif msg.is_response:
+            self.emit('response', msg, addr)
+
     def _protocol_factory(self):
         return SSDPProtocol(
             self.multicast, ttl=self.ttl,

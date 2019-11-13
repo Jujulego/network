@@ -9,38 +9,55 @@ MULTICAST = ("239.255.255.250", 1900)
 TTL = 4
 
 # Logging
-logging.basicConfig(level=logging.INFO)
-
-# Prepare server
-loop = asyncio.get_event_loop()
-ssdp = SSDPServer(MULTICAST, ttl=TTL, loop=loop)
+logging.basicConfig(level=logging.DEBUG)
 
 
-@ssdp.on('message')
-def message(msg, addr):
-    pass
+# Class
+class SSDPUtility:
+    def __init__(self, *, loop=None):
+        self._loop = loop or asyncio.get_event_loop()
+        self._searching = False
 
+        # - console
+        self.console = Console(loop=self._loop)
+        self.console.on('input', self.cmd)
 
-# Prepare console
-console = Console(loop=loop)
+        # - ssdp
+        self.ssdp = SSDPServer(MULTICAST, ttl=TTL, loop=self._loop)
+        self.ssdp.on('response', self.response)
 
+    # Methods
+    def _stop_searching(self):
+        self._searching = False
 
-@console.on('input')
-def cmd(line):
-    if line == '':
-        return
+    async def start(self):
+        await self.ssdp.start()
+        await self.console.start()
 
-    if line == 'search':
-        ssdp.search('ssdp:all')
-    elif line == 'stop':
-        ssdp.stop()
-        console.stop()
-        loop.stop()
-    else:
-        print(f'Unknown command : {line}')
+    # Callbacks
+    def cmd(self, line):
+        if line == '':
+            return
+
+        if line == 'search':
+            self._searching = True
+            self._loop.call_later(30, self._stop_searching)
+            self.ssdp.search('ssdp:all')
+        elif line == 'quit':
+            self.ssdp.stop()
+            self.console.stop()
+            self._loop.stop()
+        else:
+            print(f'Unknown command : {line}')
+
+    def response(self, msg, addr):
+        if self._searching:
+            print(f'{addr[0]}: {msg.usn}')
 
 
 if __name__ == '__main__':
-    loop.run_until_complete(ssdp.start())
-    loop.run_until_complete(console.start())
+    loop = asyncio.get_event_loop()
+    utility = SSDPUtility(loop=loop)
+
+    loop.run_until_complete(utility.start())
     loop.run_forever()

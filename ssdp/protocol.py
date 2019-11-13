@@ -61,7 +61,9 @@ class SSDPProtocol(asyncio.DatagramProtocol):
         assert self.transport is not None
 
         data = msg.message.encode()
-        self.transport.sendto(data, self.multicast)
+
+        for _ in range(5):
+            self.transport.sendto(data, self.multicast)
 
         # logging
         logger.debug(f'send {data}')
