@@ -3,7 +3,7 @@ import socket
 
 from pyee import AsyncIOEventEmitter
 from typing import Optional
-from utils import Address
+from network.typing import Address
 
 from .message import SSDPMessage
 from .protocol import SSDPProtocol

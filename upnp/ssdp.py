@@ -1,8 +1,8 @@
 import asyncio
 import logging
 
-from stream.console import Console
-from ssdp import SSDPServer
+from network.stream.console import Console
+from network.ssdp import SSDPServer
 
 # Parameters
 MULTICAST = ("239.255.255.250", 1900)

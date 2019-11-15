@@ -3,8 +3,8 @@ import logging
 import socket
 import struct
 
+from network.typing import Address
 from typing import Callable, Optional, Union, Text
-from utils import Address
 
 from .message import SSDPMessage
 
