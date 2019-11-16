@@ -22,7 +22,7 @@ class Module(ABC):
 
     # Methods
     def init(self):
-        asyncio.ensure_future(self._make_cli().interact())
+        asyncio.ensure_future(self._make_cli(streams=aioconsole.get_standard_streams()).interact())
 
     def _make_cli(self, streams=None) -> aioconsole.AsynchronousCli:
         return aioconsole.AsynchronousCli(self.get_commands(), streams=streams)

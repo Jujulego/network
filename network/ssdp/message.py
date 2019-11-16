@@ -83,6 +83,14 @@ class SSDPMessage:
 
     # - NOTIFY headers
     @property
+    def max_age(self) -> Optional[int]:
+        return int(self.headers.get('CACHE-CONTROL').split('=')[1])
+
+    @max_age.setter
+    def max_age(self, age: int):
+        self.headers['CACHE-CONTROL'] = f'max-age={age}'
+
+    @property
     def location(self) -> Optional[str]:
         return self.headers.get('LOCATION')
 

@@ -2,7 +2,9 @@ import asyncio
 import logging
 
 from module import Module, argument, command
-from network.ssdp import SSDPServer
+from network.ssdp import SSDPServer, SSDPRemoteDevice, SSDPMessage
+from network.typing import Address
+from typing import Dict
 
 
 # Parameters
@@ -15,11 +17,12 @@ class SSDPModule(Module):
     def __init__(self, *, loop=None):
         super().__init__(loop=loop)
         self._searching = False
+        self._devices = {}  # type: Dict[str, SSDPRemoteDevice]
 
         # - ssdp
         self.ssdp = SSDPServer(MULTICAST, ttl=TTL, loop=self._loop)
-        self.ssdp.on('response', self.on_response)
-        self.ssdp.on('search', self.on_search)
+        self.ssdp.on('response', self.on_adv_message)
+        self.ssdp.on('notify', self.on_adv_message)
 
     # Methods
     async def init(self):
@@ -30,11 +33,6 @@ class SSDPModule(Module):
         self._searching = False
 
     # Commands
-    @command(description="Quit server")
-    async def quit(self, reader, writer):
-        self.ssdp.stop()
-        self._loop.stop()
-
     @command(description="Send a ssdp search")
     @argument('st', nargs='?', default='ssdp:all')
     @argument('--mx', choices=[1, 2, 3, 4, 5])
@@ -43,13 +41,24 @@ class SSDPModule(Module):
         self._loop.call_later(30, self._stop_searching)
         self.ssdp.search(st, mx)
 
-    # Callbacks
-    def on_response(self, msg, addr):
-        if self._searching:
-            print(f'{addr[0]}: {msg.usn}')
+    @command(description="Print device list")
+    async def devices(self, reader, writer):
+        for d in self._devices.values():
+            writer.write(f'{d.address[0]} ({d.state}): {d.usn}\n')
 
-    def on_search(self, msg, addr):
-        print(f'{addr[0]}: search for {msg.st}')
+    @command(description="Quit server")
+    async def quit(self, reader, writer):
+        self.ssdp.stop()
+        self._loop.stop()
+
+    # Callbacks
+    def on_adv_message(self, msg: SSDPMessage, addr: Address):
+        if msg.usn not in self._devices:
+            print(f'New device on {addr[0]}: {msg.usn}')
+            self._devices[msg.usn] = SSDPRemoteDevice(msg, addr, loop=self._loop)
+
+        else:
+            self._devices[msg.usn].message(msg)
 
 
 if __name__ == '__main__':
