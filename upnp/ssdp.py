@@ -9,7 +9,7 @@ MULTICAST = ("239.255.255.250", 1900)
 TTL = 4
 
 # Logging
-#logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.DEBUG)
 
 
 # Class
