@@ -37,7 +37,7 @@ class SSDPModule(Module):
 
     @command(description="Send a ssdp search")
     @argument('st', nargs='?', default='ssdp:all')
-    @argument('--mx', default=5, choices=[1, 2, 3, 4, 5])
+    @argument('--mx', choices=[1, 2, 3, 4, 5])
     async def search(self, reader, writer, st: str, mx: int = 5):
         self._searching = True
         self._loop.call_later(30, self._stop_searching)

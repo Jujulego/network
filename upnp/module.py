@@ -1,6 +1,7 @@
 import aioconsole
 import argparse
 import asyncio
+import inspect
 
 from abc import ABC
 from typing import Optional, Callable, Dict, Tuple
@@ -61,23 +62,31 @@ def command(name: Optional[str] = None, description: Optional[str] = None):
     return decorator
 
 
-def argument(*flags: str, **others):
+def argument(*flags: str, **params):
     def decorator(fun):
-        if 'type' not in others:
-            name = others.get('metavar') or others.get('dest') or flags[0].strip('-')
+        name = params.get('metavar') or params.get('dest') or flags[0].strip('-')
+
+        if 'type' not in params:
             annot = fun.__annotations__[name]
 
             if isinstance(annot, type):
-                others['type'] = annot
+                params['type'] = annot
+
+        if 'default' not in params:
+            sig = inspect.signature(fun)
+            arg = sig.parameters.get(name)
+
+            if arg is not None and arg.default is not inspect.Parameter.empty:
+                params['default'] = arg.default
 
         if not hasattr(fun, 'arguments'):
-            fun.arguments = [(flags, others)]
+            fun.arguments = [(flags, params)]
 
         else:
-            fun.arguments.append((flags, others))
+            fun.arguments.append((flags, params))
 
         if is_command(fun):
-            fun.parser.add_argument(*flags, **others)
+            fun.parser.add_argument(*flags, **params)
 
         return fun
 
