@@ -1,9 +1,9 @@
 import asyncio
 import socket
 
+from network.typing import Address
 from pyee import AsyncIOEventEmitter
 from typing import Optional
-from network.typing import Address
 
 from .message import SSDPMessage
 from .protocol import SSDPProtocol
@@ -30,14 +30,14 @@ class SSDPServer(AsyncIOEventEmitter):
     def _on_message(self, msg: SSDPMessage, addr: Address):
         self.emit('message', msg, addr)
 
-        if msg.method == 'NOTIFY':
+        if msg.is_response:
+            self.emit('response', msg, addr)
+
+        elif msg.method == 'NOTIFY':
             self.emit('notify', msg, addr)
 
         elif msg.method == 'M-SEARCH':
             self.emit('search', msg, addr)
-
-        elif msg.is_response:
-            self.emit('response', msg, addr)
 
     def _protocol_factory(self):
         return SSDPProtocol(
@@ -59,12 +59,13 @@ class SSDPServer(AsyncIOEventEmitter):
         assert self.__started
         self._protocol.send_message(msg)
 
-    def search(self, st):
+    def search(self, st: str, mx: int = 5):
         msg = SSDPMessage(
             method='M-SEARCH',
             headers={
                 'MAN': 'ssdp:discover',
-                'ST': st
+                'ST': st,
+                'MX': mx
             }
         )
 

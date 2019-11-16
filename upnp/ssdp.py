@@ -9,7 +9,7 @@ MULTICAST = ("239.255.255.250", 1900)
 TTL = 4
 
 # Logging
-logging.basicConfig(level=logging.DEBUG)
+#logging.basicConfig(level=logging.DEBUG)
 
 
 # Class
@@ -25,6 +25,7 @@ class SSDPUtility:
         # - ssdp
         self.ssdp = SSDPServer(MULTICAST, ttl=TTL, loop=self._loop)
         self.ssdp.on('response', self.response)
+        self.ssdp.on('search', self.search)
 
     # Methods
     def _stop_searching(self):
@@ -53,6 +54,9 @@ class SSDPUtility:
     def response(self, msg, addr):
         if self._searching:
             print(f'{addr[0]}: {msg.usn}')
+
+    def search(self, msg, addr):
+        print(f'{addr[0]}: search for {msg.st}')
 
 
 if __name__ == '__main__':

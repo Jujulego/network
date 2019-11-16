@@ -1,5 +1,5 @@
-from typing import Optional, Dict, List
 from network.typing import Address
+from typing import Optional, Dict, List
 
 Headers = Dict[str, str]
 
