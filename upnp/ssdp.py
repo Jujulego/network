@@ -1,22 +1,19 @@
-import aioconsole
-import argparse
 import asyncio
 import logging
 
+from module import Module, argument, command
 from network.ssdp import SSDPServer
+
 
 # Parameters
 MULTICAST = ("239.255.255.250", 1900)
 TTL = 4
 
-# Logging
-logging.basicConfig(level=logging.DEBUG)
-
 
 # Class
-class SSDPUtility:
+class SSDPModule(Module):
     def __init__(self, *, loop=None):
-        self._loop = loop or asyncio.get_event_loop()
+        super().__init__(loop=loop)
         self._searching = False
 
         # - ssdp
@@ -25,32 +22,22 @@ class SSDPUtility:
         self.ssdp.on('search', self.on_search)
 
     # Methods
-    def _make_cli(self, streams=None) -> aioconsole.AsynchronousCli:
-        # - quit
-        quit_parser = argparse.ArgumentParser(description="Quit server")
-
-        # - search
-        search_parser = argparse.ArgumentParser(description="Send a ssdp search")
-        search_parser.add_argument('st', type=str, nargs='?', default="ssdp:all")
-        search_parser.add_argument('--mx', type=int, default=5, choices=[1, 2, 3, 4, 5])
-
-        return aioconsole.AsynchronousCli({
-            'quit': (self.quit, quit_parser),
-            'search': (self.search, search_parser)
-        }, streams=streams)
+    async def init(self):
+        await self.ssdp.start()
+        super().init()
 
     def _stop_searching(self):
         self._searching = False
 
-    async def start(self):
-        await self.ssdp.start()
-        asyncio.ensure_future(self._make_cli().interact())
-
     # Commands
+    @command(description="Quit server")
     async def quit(self, reader, writer):
         self.ssdp.stop()
         self._loop.stop()
 
+    @command(description="Send a ssdp search")
+    @argument('st', nargs='?', default='ssdp:all')
+    @argument('--mx', default=5, choices=[1, 2, 3, 4, 5])
     async def search(self, reader, writer, st: str, mx: int = 5):
         self._searching = True
         self._loop.call_later(30, self._stop_searching)
@@ -66,8 +53,10 @@ class SSDPUtility:
 
 
 if __name__ == '__main__':
-    loop = asyncio.get_event_loop()
-    utility = SSDPUtility(loop=loop)
+    logging.basicConfig(level=logging.DEBUG)
 
-    loop.run_until_complete(utility.start())
+    loop = asyncio.get_event_loop()
+    ssdp = SSDPModule(loop=loop)
+
+    loop.run_until_complete(ssdp.init())
     loop.run_forever()
