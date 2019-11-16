@@ -1,7 +1,8 @@
+import aioconsole
+import argparse
 import asyncio
 import logging
 
-from network.stream.console import Console
 from network.ssdp import SSDPServer
 
 # Parameters
@@ -18,44 +19,49 @@ class SSDPUtility:
         self._loop = loop or asyncio.get_event_loop()
         self._searching = False
 
-        # - console
-        self.console = Console(loop=self._loop)
-        self.console.on('input', self.cmd)
-
         # - ssdp
         self.ssdp = SSDPServer(MULTICAST, ttl=TTL, loop=self._loop)
-        self.ssdp.on('response', self.response)
-        self.ssdp.on('search', self.search)
+        self.ssdp.on('response', self.on_response)
+        self.ssdp.on('search', self.on_search)
 
     # Methods
+    def _make_cli(self, streams=None) -> aioconsole.AsynchronousCli:
+        # - quit
+        quit_parser = argparse.ArgumentParser(description="Quit server")
+
+        # - search
+        search_parser = argparse.ArgumentParser(description="Send a ssdp search")
+        search_parser.add_argument('st', type=str, nargs='?', default="ssdp:all")
+        search_parser.add_argument('--mx', type=int, default=5, choices=[1, 2, 3, 4, 5])
+
+        return aioconsole.AsynchronousCli({
+            'quit': (self.quit, quit_parser),
+            'search': (self.search, search_parser)
+        }, streams=streams)
+
     def _stop_searching(self):
         self._searching = False
 
     async def start(self):
         await self.ssdp.start()
-        await self.console.start()
+        asyncio.ensure_future(self._make_cli().interact())
+
+    # Commands
+    async def quit(self, reader, writer):
+        self.ssdp.stop()
+        self._loop.stop()
+
+    async def search(self, reader, writer, st: str, mx: int = 5):
+        self._searching = True
+        self._loop.call_later(30, self._stop_searching)
+        self.ssdp.search(st, mx)
 
     # Callbacks
-    def cmd(self, line):
-        if line == '':
-            return
-
-        if line == 'search':
-            self._searching = True
-            self._loop.call_later(30, self._stop_searching)
-            self.ssdp.search('ssdp:all')
-        elif line == 'quit':
-            self.ssdp.stop()
-            self.console.stop()
-            self._loop.stop()
-        else:
-            print(f'Unknown command : {line}')
-
-    def response(self, msg, addr):
+    def on_response(self, msg, addr):
         if self._searching:
             print(f'{addr[0]}: {msg.usn}')
 
-    def search(self, msg, addr):
+    def on_search(self, msg, addr):
         print(f'{addr[0]}: search for {msg.st}')
 
 
