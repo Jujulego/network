@@ -42,17 +42,38 @@ class SSDPModule(Module):
 
     @command(description="Print device list")
     @argument('val', nargs='?')
-    @argument('--urn', '-u', action='store_true')
-    async def store(self, reader, writer, val: str = '', urn = False):
-        if val == '':
+    @argument('--ip', dest='ip', action='store_true')
+    @argument('-r', '--root', dest='root', action='store_true')
+    async def store(self, reader, writer, val: str = '', ip=False, root=False):
+        if root:
+            devices = self._store.roots()
+        elif val == '':
             devices = self._store
-        elif urn:
-            devices = self._store.filter(URN(val))
+        elif ip:
+            devices = self._store.ip_filter(val)
         else:
-            devices = self._store.filter(val)
+            devices = self._store.urn_filter(val)
 
         for d in devices:
             writer.write(f'{d.address[0]} ({d.state}): {d.uuid}\n')
+
+    @command(description="Show device details")
+    @argument('uuid')
+    async def show(self, reader, writer, uuid: str):
+        device = self._store.get(uuid)
+
+        if device is None:
+            writer.write(f'No device {uuid}\n')
+
+        else:
+            writer.write(f'Device {uuid}:\n')
+            writer.write(f'- address : {device.address[0]}\n')
+            writer.write(f'- root    : {device.root}\n')
+            writer.write(f'\n')
+            writer.write(f'URNs :\n')
+
+            for urn in device.urns:
+                writer.write(f'- {urn}\n')
 
     @command(description="Quit server")
     async def quit(self, reader, writer):

@@ -1,10 +1,13 @@
+from typing import Any
+
+
 # Class
 class URN:
     def __init__(self, urn: str):
         # Check
         parts = urn.split(':')
 
-        if parts[0] == 'urn' and len(parts) != 5:
+        if parts[0] != 'urn' or len(parts) != 5:
             raise ValueError(f'Invalid URN : {urn}')
 
         # Get parts
@@ -21,6 +24,18 @@ class URN:
 
     def __str__(self) -> str:
         return self.urn
+
+    def __hash__(self):
+        return hash(self.urn)
+
+    def __eq__(self, other: Any) -> bool:
+        if isinstance(other, URN):
+            other = other.urn
+
+        if isinstance(other, str):
+            return self.urn == other
+
+        return False
 
     # Property
     @property

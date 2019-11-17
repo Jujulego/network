@@ -30,6 +30,7 @@ class SSDPRemoteDevice(StateMachine, RemoteDevice):
         # Attributes
         # - metadata
         self.location = msg.location
+        self.root = False
         self.urns = set()  # type: Set[URN]
         self.uuid = msg.usn.uuid
 
@@ -72,3 +73,6 @@ class SSDPRemoteDevice(StateMachine, RemoteDevice):
         if msg.is_response or msg.method == 'NOTIFY':
             if msg.usn.urn is not None:
                 self.urns.add(msg.usn.urn)
+
+            if msg.usn.is_root:
+                self.root = True

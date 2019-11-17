@@ -3,9 +3,9 @@ import logging
 import pyee
 
 from network.typing import Address
-from typing import Dict, Iterator, List, Optional, overload
+from typing import Dict, Iterator, Optional, Union
 
-from .device import States, SSDPRemoteDevice
+from .device import SSDPRemoteDevice
 from .message import SSDPMessage
 from .urn import URN
 
@@ -31,12 +31,20 @@ class SSDPStore(pyee.AsyncIOEventEmitter):
         return self._devices[uuid]
 
     # Methods
-    @overload
-    def filter(self, val: URN) -> Iterator[SSDPRemoteDevice]:
+    def get(self, uuid: str) -> Optional[SSDPRemoteDevice]:
+        return self._devices.get(uuid)
+
+    def ip_filter(self, val: str) -> Iterator[SSDPRemoteDevice]:
+        return filter(lambda d: val == d.address[0],  self._devices.values())
+
+    def urn_filter(self, val: Union[str, URN]) -> Iterator[SSDPRemoteDevice]:
+        if isinstance(val, str):
+            val = URN(val)
+
         return filter(lambda d: val in d.urns, self._devices.values())
 
-    def filter(self, val: str) -> Iterator[SSDPRemoteDevice]:
-        return filter(lambda d: val == d.address[0],  self._devices.values())
+    def roots(self) -> Iterator[SSDPRemoteDevice]:
+        return filter(lambda d: d.root, self._devices.values())
 
     # Callbacks
     def on_adv_message(self, msg: SSDPMessage, addr: Address):
