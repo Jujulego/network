@@ -67,7 +67,7 @@ def argument(*flags: str, **params):
         name = params.get('metavar') or params.get('dest') or flags[0].strip('-')
 
         if 'type' not in params:
-            annot = fun.__annotations__[name]
+            annot = fun.__annotations__.get(name)
 
             if isinstance(annot, type):
                 params['type'] = annot

@@ -1,25 +1,17 @@
-import re
-
-# Constants
-URN_RE = re.compile(r'^urn:(?P<domain>[^:]+):(?P<kind>(device)|(service)):(?P<type>[^:]+):(?P<version>[^:]+)$', re.I)
-
-
 # Class
 class URN:
     def __init__(self, urn: str):
-        # Parse string
-        parts = URN_RE.match(urn)
+        # Check
+        parts = urn.split(':')
 
-        if parts is None:
+        if parts[0] == 'urn' and len(parts) != 5:
             raise ValueError(f'Invalid URN : {urn}')
 
         # Get parts
-        parts = parts.groupdict()
-
-        self.domain = parts['domain']
-        self.kind = parts['kind']
-        self.type = parts['type']
-        self.version = parts['version']
+        self.domain = parts[1]
+        self.kind = parts[2]
+        self.type = parts[3]
+        self.version = parts[4]
 
     def __repr__(self):
         if self.is_vendor:

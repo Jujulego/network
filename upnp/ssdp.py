@@ -2,9 +2,8 @@ import asyncio
 import logging
 
 from module import Module, argument, command
-from network.ssdp import SSDPServer, SSDPRemoteDevice, SSDPMessage
-from network.typing import Address
-from typing import Dict
+from network.ssdp import SSDPServer, SSDPStore, URN
+from typing import Optional
 
 
 # Parameters
@@ -14,15 +13,15 @@ TTL = 4
 
 # Class
 class SSDPModule(Module):
-    def __init__(self, *, loop=None):
+    def __init__(self, *, loop: Optional[asyncio.AbstractEventLoop] = None):
         super().__init__(loop=loop)
         self._searching = False
-        self._devices = {}  # type: Dict[str, SSDPRemoteDevice]
+        self._store = SSDPStore(loop=loop)
 
         # - ssdp
         self.ssdp = SSDPServer(MULTICAST, ttl=TTL, loop=self._loop)
-        self.ssdp.on('response', self.on_adv_message)
-        self.ssdp.on('notify', self.on_adv_message)
+        self.ssdp.on('response', self._store.on_adv_message)
+        self.ssdp.on('notify', self._store.on_adv_message)
 
     # Methods
     async def init(self):
@@ -34,16 +33,25 @@ class SSDPModule(Module):
 
     # Commands
     @command(description="Send a ssdp search")
-    @argument('st', nargs='?', default='ssdp:all')
     @argument('--mx', choices=[1, 2, 3, 4, 5])
+    @argument('st', nargs='?', default='ssdp:all')
     async def search(self, reader, writer, st: str, mx: int = 5):
         self._searching = True
         self._loop.call_later(30, self._stop_searching)
         self.ssdp.search(st, mx)
 
     @command(description="Print device list")
-    async def devices(self, reader, writer):
-        for d in self._devices.values():
+    @argument('val', nargs='?')
+    @argument('--urn', '-u', action='store_true')
+    async def store(self, reader, writer, val: str = '', urn = False):
+        if val == '':
+            devices = self._store
+        elif urn:
+            devices = self._store.filter(URN(val))
+        else:
+            devices = self._store.filter(val)
+
+        for d in devices:
             writer.write(f'{d.address[0]} ({d.state}): {d.uuid}\n')
 
     @command(description="Quit server")
@@ -51,20 +59,9 @@ class SSDPModule(Module):
         self.ssdp.stop()
         self._loop.stop()
 
-    # Callbacks
-    def on_adv_message(self, msg: SSDPMessage, addr: Address):
-        uuid = msg.usn.uuid
-
-        if uuid not in self._devices:
-            print(f'New device on {addr[0]}: {uuid}')
-            self._devices[uuid] = SSDPRemoteDevice(msg, addr, loop=self._loop)
-
-        else:
-            self._devices[uuid].message(msg)
-
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.DEBUG)
+    logging.basicConfig(level=logging.INFO)
 
     loop = asyncio.get_event_loop()
     ssdp = SSDPModule(loop=loop)
