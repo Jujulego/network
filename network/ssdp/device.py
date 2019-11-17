@@ -3,10 +3,11 @@ import asyncio
 from enum import Enum, auto
 from network.device import RemoteDevice
 from network.typing import Address
-from typing import Optional
+from typing import Optional, Set
 from utils.machine import StateMachine
 
 from .message import SSDPMessage
+from .urn import URN
 
 
 # Utils
@@ -28,6 +29,8 @@ class SSDPRemoteDevice(StateMachine, RemoteDevice):
 
         # Attributes
         # - metadata
+        self.location = msg.location
+        self.urns = set()  # type: Set[URN]
         self.uuid = msg.usn.uuid
 
         # - internals
@@ -65,3 +68,7 @@ class SSDPRemoteDevice(StateMachine, RemoteDevice):
 
             elif msg.nts == 'ssdp:byebye':
                 self._inactivate()
+
+        if msg.is_response or msg.method == 'NOTIFY':
+            if msg.usn.urn is not None:
+                self.urns.add(msg.usn.urn)

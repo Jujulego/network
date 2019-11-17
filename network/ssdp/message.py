@@ -2,6 +2,7 @@ from network.typing import Address
 from typing import Optional, Union, Dict, List
 
 from .usn import USN
+from .urn import URN
 
 Headers = Dict[str, str]
 
@@ -101,11 +102,19 @@ class SSDPMessage:
         self.headers['LOCATION'] = location
 
     @property
-    def nt(self) -> Optional[str]:
-        return self.headers.get('NT')
+    def nt(self) -> Union[URN, str, None]:
+        nt = self.headers.get('NT')
+
+        if nt is not None and nt.startswith('urn'):
+            nt = URN(nt)
+
+        return nt
 
     @nt.setter
-    def nt(self, nt: str):
+    def nt(self, nt: Union[URN, str]):
+        if isinstance(nt, URN):
+            nt = nt.urn
+
         self.headers['NT'] = nt
 
     @property
@@ -145,9 +154,17 @@ class SSDPMessage:
         self.headers['MX'] = mx
 
     @property
-    def st(self) -> Optional[str]:
-        return self.headers.get('ST')
+    def st(self) -> Union[URN, str, None]:
+        st = self.headers.get('ST')
+
+        if st is not None and st.startswith('urn'):
+            st = URN(st)
+
+        return st
 
     @st.setter
-    def st(self, st: str):
+    def st(self, st: Union[URN, str]):
+        if isinstance(st, URN):
+            st = st.urn
+
         self.headers['ST'] = st
