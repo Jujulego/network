@@ -28,13 +28,16 @@ class SSDPRemoteDevice(StateMachine, RemoteDevice):
 
         # Attributes
         # - metadata
-        self.usn = msg.usn
+        self.uuid = msg.usn.uuid
 
         # - internals
         self._inactivate_handle = None  # type: Optional[asyncio.TimerHandle]
 
         # Message
         self.message(msg)
+
+    def __repr__(self):
+        return f'<SSDPRemoteDevice: {self.uuid} ({self.state})>'
 
     # Methods
     def _activate(self, age: int):

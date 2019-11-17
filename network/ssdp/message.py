@@ -1,5 +1,7 @@
 from network.typing import Address
-from typing import Optional, Dict, List
+from typing import Optional, Union, Dict, List
+
+from .usn import USN
 
 Headers = Dict[str, str]
 
@@ -115,11 +117,14 @@ class SSDPMessage:
         self.headers['NTS'] = nts
 
     @property
-    def usn(self) -> Optional[str]:
-        return self.headers.get('USN')
+    def usn(self) -> Optional[USN]:
+        return USN(self.headers['USN']) if 'USN' in self.headers else None
 
     @usn.setter
-    def usn(self, usn: str):
+    def usn(self, usn: Union[str, USN]):
+        if isinstance(usn, USN):
+            usn = str(usn)
+
         self.headers['USN'] = usn
 
     # - M-SEARCH headers

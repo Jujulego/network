@@ -44,7 +44,7 @@ class SSDPModule(Module):
     @command(description="Print device list")
     async def devices(self, reader, writer):
         for d in self._devices.values():
-            writer.write(f'{d.address[0]} ({d.state}): {d.usn}\n')
+            writer.write(f'{d.address[0]} ({d.state}): {d.uuid}\n')
 
     @command(description="Quit server")
     async def quit(self, reader, writer):
@@ -53,12 +53,14 @@ class SSDPModule(Module):
 
     # Callbacks
     def on_adv_message(self, msg: SSDPMessage, addr: Address):
-        if msg.usn not in self._devices:
-            print(f'New device on {addr[0]}: {msg.usn}')
-            self._devices[msg.usn] = SSDPRemoteDevice(msg, addr, loop=self._loop)
+        uuid = msg.usn.uuid
+
+        if uuid not in self._devices:
+            print(f'New device on {addr[0]}: {uuid}')
+            self._devices[uuid] = SSDPRemoteDevice(msg, addr, loop=self._loop)
 
         else:
-            self._devices[msg.usn].message(msg)
+            self._devices[uuid].message(msg)
 
 
 if __name__ == '__main__':
