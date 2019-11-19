@@ -67,8 +67,9 @@ class SSDPModule(Module):
 
         else:
             writer.write(f'Device {uuid}:\n')
-            writer.write(f'- address : {device.address[0]}\n')
-            writer.write(f'- root    : {device.root}\n')
+            writer.write(f'- address  : {device.address[0]}\n')
+            writer.write(f'- location : {device.location}\n')
+            writer.write(f'- root     : {device.root}\n')
             writer.write(f'\n')
             writer.write(f'URNs :\n')
 
@@ -82,7 +83,7 @@ class SSDPModule(Module):
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=logging.DEBUG)
 
     loop = asyncio.get_event_loop()
     ssdp = SSDPModule(loop=loop)
