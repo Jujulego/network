@@ -35,7 +35,7 @@ class SSDPRemoteDevice(StateMachine, RemoteDevice):
         self.uuid = msg.usn.uuid
 
         # - internals
-        self._inactivate_handle = None  # type: Optional[asyncio.TimerHandle]
+        self._inactive_handle = None  # type: Optional[asyncio.TimerHandle]
 
         # Message
         self.message(msg)
