@@ -2,7 +2,6 @@ import asyncio
 
 from enum import Enum, auto
 from network.device import RemoteDevice
-from network.typing import Address
 from typing import Optional, Set
 from utils.machine import StateMachine
 
@@ -23,7 +22,7 @@ class States(Enum):
 
 # Class
 class SSDPRemoteDevice(StateMachine, RemoteDevice):
-    def __init__(self, msg: SSDPMessage, addr: Address, *, loop: Optional[asyncio.AbstractEventLoop] = None):
+    def __init__(self, msg: SSDPMessage, addr: str, *, loop: Optional[asyncio.AbstractEventLoop] = None):
         StateMachine.__init__(self, States.INACTIVE, loop=loop)
         RemoteDevice.__init__(self, addr)
 

@@ -7,6 +7,7 @@ from typing import Dict, Iterator, Optional, Union
 
 from .device import SSDPRemoteDevice
 from .message import SSDPMessage
+from .server import SSDPServer
 from .urn import URN
 
 # Logging
@@ -15,6 +16,14 @@ logger = logging.getLogger("ssdp")
 
 # Class
 class SSDPStore(pyee.AsyncIOEventEmitter):
+    """
+    Class SSDPStore:
+    Collect and manages SSDP devices.
+
+    Events:
+    - new (device: SSDPDevice) : each time a new device is detected
+    """
+
     def __init__(self, *, loop: Optional[asyncio.AbstractEventLoop] = None):
         if loop is None:
             loop = asyncio.get_event_loop()
@@ -34,6 +43,10 @@ class SSDPStore(pyee.AsyncIOEventEmitter):
         return self._devices[uuid]
 
     # Methods
+    def connect_to(self, srv: SSDPServer):
+        srv.on('notify', self.on_adv_message)
+        srv.on('response', self.on_adv_message)
+
     def get(self, uuid: str) -> Optional[SSDPRemoteDevice]:
         return self._devices.get(uuid)
 
@@ -54,10 +67,10 @@ class SSDPStore(pyee.AsyncIOEventEmitter):
         uuid = msg.usn.uuid
 
         if uuid not in self._devices:
-            device = SSDPRemoteDevice(msg, addr, loop=self._loop)
+            device = SSDPRemoteDevice(msg, addr[0], loop=self._loop)
             self._devices[uuid] = device
 
-            self.emit('new device', device)
+            self.emit('new', device)
             logger.info(f'New device on {addr[0]}: {uuid}')
 
         else:

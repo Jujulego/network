@@ -16,16 +16,16 @@ class SSDPModule(Module):
     def __init__(self, *, loop: Optional[asyncio.AbstractEventLoop] = None):
         super().__init__(loop=loop)
         self._searching = False
-        self._store = SSDPStore(loop=loop)
 
         # - ssdp
-        self.ssdp = SSDPServer(MULTICAST, ttl=TTL, loop=self._loop)
-        self.ssdp.on('response', self._store.on_adv_message)
-        self.ssdp.on('notify', self._store.on_adv_message)
+        self._ssdp = SSDPServer(MULTICAST, ttl=TTL, loop=self._loop)
+
+        self._store = SSDPStore(loop=loop)
+        self._store.connect_to(self._ssdp)
 
     # Methods
     async def init(self):
-        await self.ssdp.start()
+        await self._ssdp.start()
         super().init()
 
     def _stop_searching(self):
@@ -38,7 +38,7 @@ class SSDPModule(Module):
     async def search(self, reader, writer, st: str, mx: int = 5):
         self._searching = True
         self._loop.call_later(30, self._stop_searching)
-        self.ssdp.search(st, mx)
+        self._ssdp.search(st, mx)
 
     @command(description="Print device list")
     @argument('val', nargs='?')
@@ -78,7 +78,7 @@ class SSDPModule(Module):
 
     @command(description="Quit server")
     async def quit(self, reader, writer):
-        self.ssdp.stop()
+        self._ssdp.stop()
         self._loop.stop()
 
 
