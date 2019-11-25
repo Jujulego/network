@@ -16,6 +16,9 @@ logger = logging.getLogger("ssdp")
 # Class
 class SSDPStore(pyee.AsyncIOEventEmitter):
     def __init__(self, *, loop: Optional[asyncio.AbstractEventLoop] = None):
+        if loop is None:
+            loop = asyncio.get_event_loop()
+
         super().__init__(loop=loop)
 
         # - stores
@@ -51,7 +54,7 @@ class SSDPStore(pyee.AsyncIOEventEmitter):
         uuid = msg.usn.uuid
 
         if uuid not in self._devices:
-            device = SSDPRemoteDevice(msg, addr)
+            device = SSDPRemoteDevice(msg, addr, loop=self._loop)
             self._devices[uuid] = device
 
             self.emit('new device', device)

@@ -39,7 +39,7 @@ class SSDPProtocol(asyncio.DatagramProtocol):
         sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
 
         # setup ttl
-        sock.setsockopt(socket.IPPROTO_IP, socket.IP_TTL, self.ttl)
+        sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, self.ttl)
 
         # logging
         logger.info(f'Connected to {self.multicast[0]}:{self.multicast[1]}')
