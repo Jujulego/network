@@ -73,7 +73,7 @@ class SSDPRemoteDevice(StateMachine, RemoteDevice, HTTPCapability):
             self._activate(msg.max_age)
 
         elif msg.method == 'NOTIFY':
-            if msg.nts == 'ssdp:active':
+            if msg.nts == 'ssdp:alive':
                 self._activate(msg.max_age)
 
             elif msg.nts == 'ssdp:byebye':

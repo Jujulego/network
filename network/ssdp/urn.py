@@ -18,7 +18,7 @@ class URN:
 
     def __repr__(self):
         if self.is_vendor:
-            return f'<URN: {self.kind} {self.domain} {self.type} ({self.version})>'
+            return f'<URN: {self.kind} {self.type} ({self.domain}: {self.version})>'
 
         return f'<URN: {self.kind} {self.type} ({self.version})>'
 

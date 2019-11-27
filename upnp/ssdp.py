@@ -61,24 +61,27 @@ if __name__ == '__main__':
 
     # Arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument("--verbose", "-v", action="store_true")
+    parser.add_argument("--no-cli", action="store_true")
     parser.add_argument("--serve", metavar="[host:]port", type=int)
+    parser.add_argument("--verbose", "-v", action="store_true")
 
     args = parser.parse_args(sys.argv[1:])
 
     if args.verbose:
         logging.basicConfig(level=logging.DEBUG)
 
-    # CLI setup
-    if args.serve:
-        host, port = parse_server(args.serve, parser)
-        task = asyncio.start_server(lambda r, w: start_cli(streams=(r, w)), host, port, loop=loop)
-    else:
-        task = start_cli()
-
     # Start !
     ssdp = SSDP(loop=loop)
-
     loop.run_until_complete(ssdp.init())
-    loop.run_until_complete(task)
+
+    # CLI setup
+    if not args.no_cli:
+        if args.serve:
+            host, port = parse_server(args.serve, parser)
+            task = asyncio.start_server(lambda r, w: start_cli(streams=(r, w)), host, port, loop=loop)
+        else:
+            task = start_cli()
+
+        loop.run_until_complete(task)
+
     loop.run_forever()
