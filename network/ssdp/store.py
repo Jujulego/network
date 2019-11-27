@@ -33,6 +33,9 @@ class SSDPStore(pyee.AsyncIOEventEmitter):
         # - stores
         self._devices = {}  # type: Dict[str, SSDPRemoteDevice]
 
+    def __repr__(self):
+        return f'<SSDPStore: {len(self)} devices>'
+
     def __iter__(self):
         return iter(self._devices.values())
 

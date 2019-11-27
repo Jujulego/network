@@ -18,8 +18,8 @@ def is_activation_msg(msg: SSDPMessage) -> bool:
 
 # States
 class States(Enum):
-    ACTIVE = auto
-    INACTIVE = auto
+    ACTIVE = auto()
+    INACTIVE = auto()
 
 
 # Class
