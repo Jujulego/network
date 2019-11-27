@@ -2,8 +2,10 @@ import asyncio
 
 from enum import Enum, auto
 from network.device import RemoteDevice
+from network.http.capability import HTTPCapability
 from typing import Optional, Set
 from utils.machine import StateMachine
+from xml.etree import ElementTree as ET
 
 from .message import SSDPMessage
 from .urn import URN
@@ -21,10 +23,11 @@ class States(Enum):
 
 
 # Class
-class SSDPRemoteDevice(StateMachine, RemoteDevice):
+class SSDPRemoteDevice(StateMachine, RemoteDevice, HTTPCapability):
     def __init__(self, msg: SSDPMessage, addr: str, *, loop: Optional[asyncio.AbstractEventLoop] = None):
         StateMachine.__init__(self, States.INACTIVE, loop=loop)
         RemoteDevice.__init__(self, addr)
+        HTTPCapability.__init__(self, loop)
 
         # Attributes
         # - metadata
@@ -57,6 +60,13 @@ class SSDPRemoteDevice(StateMachine, RemoteDevice):
         if self._inactive_handle is not None:
             self._inactive_handle.cancel()
             self._inactive_handle = None
+
+    async def _get_description(self, *, timeout: int = 10) -> ET.Element:
+        async with self.http_get(self.location, timeout=timeout) as response:
+            assert response.status == 200
+            data = await response.read()
+
+            return ET.fromstring(data.decode('utf-8'))
 
     def message(self, msg: SSDPMessage):
         if msg.is_response:
