@@ -61,8 +61,8 @@ class SSDPRemoteDevice(StateMachine, RemoteDevice, HTTPCapability):
             self._inactive_handle.cancel()
             self._inactive_handle = None
 
-    async def _get_description(self, *, timeout: int = 10) -> ET.Element:
-        async with self.http_get(self.location, timeout=timeout) as response:
+    async def _get_description(self) -> ET.Element:
+        async with self.http_get(self.location) as response:
             assert response.status == 200
             data = await response.read()
 

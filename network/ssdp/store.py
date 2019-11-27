@@ -3,7 +3,7 @@ import logging
 import pyee
 
 from network.typing import Address
-from typing import Dict, Iterator, Optional, Union
+from typing import Dict, Iterable, Optional, Union
 
 from .device import SSDPRemoteDevice
 from .message import SSDPMessage
@@ -39,7 +39,7 @@ class SSDPStore(pyee.AsyncIOEventEmitter):
     def __len__(self):
         return len(self._devices)
 
-    def __getitem__(self, uuid) -> SSDPRemoteDevice:
+    def __getitem__(self, uuid: str) -> SSDPRemoteDevice:
         return self._devices[uuid]
 
     # Methods
@@ -50,17 +50,17 @@ class SSDPStore(pyee.AsyncIOEventEmitter):
     def get(self, uuid: str) -> Optional[SSDPRemoteDevice]:
         return self._devices.get(uuid)
 
-    def ip_filter(self, val: str) -> Iterator[SSDPRemoteDevice]:
-        return filter(lambda d: val == d.address[0],  self._devices.values())
+    def ip_filter(self, ip: str) -> Iterable[SSDPRemoteDevice]:
+        return [d for d in self if d.address == ip]
 
-    def urn_filter(self, val: Union[str, URN]) -> Iterator[SSDPRemoteDevice]:
-        if isinstance(val, str):
-            val = URN(val)
+    def urn_filter(self, urn: Union[str, URN]) -> Iterable[SSDPRemoteDevice]:
+        if isinstance(urn, str):
+            urn = URN(urn)
 
-        return filter(lambda d: val in d.urns, self._devices.values())
+        return [d for d in self if urn in d.urns]
 
-    def roots(self) -> Iterator[SSDPRemoteDevice]:
-        return filter(lambda d: d.root, self._devices.values())
+    def roots(self) -> Iterable[SSDPRemoteDevice]:
+        return [d for d in self if d.root]
 
     # Callbacks
     def on_adv_message(self, msg: SSDPMessage, addr: Address):

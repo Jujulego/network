@@ -7,9 +7,8 @@ class HTTPCapability:
         self.__session = aiohttp.ClientSession(loop=loop)
 
     # Methods
-    async def http_get(self, url: str, *, timeout: int = 10):
-        with aiohttp.ClientTimeout(timeout):
-            return self.http_session.get(url)
+    def http_get(self, url: str):
+        return self.http_session.get(url)
 
     # Properties
     @property

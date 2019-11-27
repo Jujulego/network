@@ -1,8 +1,11 @@
+import argparse
 import asyncio
 import logging
+import sys
 
-from module import Module, argument, command
-from network.ssdp import SSDPServer, SSDPStore, URN
+from aioconsole import interact, get_standard_streams
+from aioconsole.server import parse_server
+from network.ssdp import SSDPServer, SSDPStore, SSDPRemoteDevice
 from typing import Optional
 
 
@@ -12,81 +15,70 @@ TTL = 4
 
 
 # Class
-class SSDPModule(Module):
+class SSDP:
     def __init__(self, *, loop: Optional[asyncio.AbstractEventLoop] = None):
-        super().__init__(loop=loop)
+        if loop is None:
+            loop = asyncio.get_event_loop()
+
+        self._loop = loop
         self._searching = False
 
         # - ssdp
-        self._ssdp = SSDPServer(MULTICAST, ttl=TTL, loop=self._loop)
+        self.ssdp = SSDPServer(MULTICAST, ttl=TTL, loop=self._loop)
 
-        self._store = SSDPStore(loop=loop)
-        self._store.connect_to(self._ssdp)
+        self.store = SSDPStore(loop=loop)
+        self.store.connect_to(self.ssdp)
+
+        self.store.on('new', self.on_new_device)
 
     # Methods
     async def init(self):
-        await self._ssdp.start()
-        super().init()
+        await self.ssdp.start()
 
-    def _stop_searching(self):
-        self._searching = False
+    async def on_new_device(self, device: SSDPRemoteDevice):
+        print(f'New device : {repr(device)}')
 
-    # Commands
-    @command(description="Send a ssdp search")
-    @argument('--mx', choices=[1, 2, 3, 4, 5])
-    @argument('st', nargs='?', default='ssdp:all')
-    async def search(self, reader, writer, st: str, mx: int = 5):
-        self._searching = True
-        self._loop.call_later(30, self._stop_searching)
-        self._ssdp.search(st, mx)
+        try:
+            xml = await device._get_description()
 
-    @command(description="Print device list")
-    @argument('val', nargs='?')
-    @argument('--ip', dest='ip', action='store_true')
-    @argument('-r', '--root', dest='root', action='store_true')
-    async def store(self, reader, writer, val: str = '', ip=False, root=False):
-        if root:
-            devices = self._store.roots()
-        elif val == '':
-            devices = self._store
-        elif ip:
-            devices = self._store.ip_filter(val)
-        else:
-            devices = self._store.urn_filter(val)
+        except Exception as err:
+            print(f'Error with {device.uuid}: {str(err)}')
 
-        for d in devices:
-            writer.write(f'{d.address[0]} ({d.state}): {d.uuid}\n')
 
-    @command(description="Show device details")
-    @argument('uuid')
-    async def show(self, reader, writer, uuid: str):
-        device = self._store.get(uuid)
-
-        if device is None:
-            writer.write(f'No device {uuid}\n')
-
-        else:
-            writer.write(f'Device {uuid}:\n')
-            writer.write(f'- address  : {device.address[0]}\n')
-            writer.write(f'- location : {device.location}\n')
-            writer.write(f'- root     : {device.root}\n')
-            writer.write(f'\n')
-            writer.write(f'URNs :\n')
-
-            for urn in device.urns:
-                writer.write(f'- {urn}\n')
-
-    @command(description="Quit server")
-    async def quit(self, reader, writer):
-        self._ssdp.stop()
-        self._loop.stop()
+async def start_cli(streams=None, *, loop=None):
+    await interact(
+        streams=streams or get_standard_streams(use_stderr=False, loop=loop),
+        locals={
+            'ssdp': ssdp.ssdp,
+            'store': ssdp.store
+        },
+        loop=loop
+    )
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.DEBUG)
-
     loop = asyncio.get_event_loop()
-    ssdp = SSDPModule(loop=loop)
+
+    # Arguments
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--verbose", "-v", action="store_true")
+    parser.add_argument("--serve", metavar="[host:]port", type=int)
+
+    args = parser.parse_args(sys.argv[1:])
+
+    if args.verbose:
+        logging.basicConfig(level=logging.DEBUG)
+
+    # CLI setup
+    if args.serve:
+        host, port = parse_server(args.serve, parser)
+        task = asyncio.start_server(lambda r, w: start_cli(streams=(r, w)), host, port, loop=loop)
+    else:
+        task = start_cli()
+
+    # Start !
+    ssdp = SSDP(loop=loop)
 
     loop.run_until_complete(ssdp.init())
+    loop.run_until_complete(task)
     loop.run_forever()
