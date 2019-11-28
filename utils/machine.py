@@ -24,5 +24,7 @@ class StateMachine(Generic[S], ABC, pyee.AsyncIOEventEmitter):
 
     @state.setter
     def state(self, s: S):
+        ps = self.__state
         self.__state = s
-        self.emit(s)
+
+        self.emit(s, was=ps)

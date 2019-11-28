@@ -87,7 +87,10 @@ class SSDPMessage:
     # - NOTIFY headers
     @property
     def max_age(self) -> Optional[int]:
-        return int(self.headers.get('CACHE-CONTROL').split('=')[1])
+        if not 'CACHE-CONTROL' in self.headers:
+            return None
+
+        return int(self.headers['CACHE-CONTROL'].split('=')[1])
 
     @max_age.setter
     def max_age(self, age: int):

@@ -1,14 +1,22 @@
-from abc import ABC
+import asyncio
+
+from utils.machine import StateMachine
+from typing import Optional, TypeVar
+
+# Types
+S = TypeVar('S')
 
 
-class RemoteDevice(ABC):
-    def __init__(self, addr: str):
+class RemoteDevice(StateMachine[S]):
+    def __init__(self, addr: str, initial_state: S, *, loop: Optional[asyncio.AbstractEventLoop] = None):
+        super().__init__(initial_state, loop=loop)
+
         self.address = addr
 
     def __repr__(self):
-        return f'<{self.__class__.__name__}: {self.name}>'
+        return f'<{self.__class__.__name__}: {self.name} ({self.state})>'
 
     # Properties
     @property
-    def name(self):
+    def name(self) -> str:
         return self.address

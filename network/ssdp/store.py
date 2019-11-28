@@ -65,6 +65,12 @@ class SSDPStore(pyee.AsyncIOEventEmitter):
     def roots(self) -> Iterable[SSDPRemoteDevice]:
         return [d for d in self if d.root]
 
+    def show(self):
+        for dev in self:
+            print(f'- {repr(dev)}')
+
+        print(f'{len(self)} device(s)')
+
     # Callbacks
     def on_adv_message(self, msg: SSDPMessage, addr: Address):
         uuid = msg.usn.uuid
@@ -77,4 +83,4 @@ class SSDPStore(pyee.AsyncIOEventEmitter):
             logger.info(f'New device on {addr[0]}: {uuid}')
 
         else:
-            self._devices[uuid].message(msg)
+            self._devices[uuid].on_message(msg)

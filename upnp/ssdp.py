@@ -38,12 +38,6 @@ class SSDP:
     async def on_new_device(self, device: SSDPRemoteDevice):
         print(f'New device : {repr(device)}')
 
-        try:
-            xml = await device._get_description()
-
-        except Exception as err:
-            print(f'Error with {device.uuid}: {str(err)}')
-
 
 async def start_cli(streams=None, *, loop=None):
     await interact(
@@ -57,8 +51,6 @@ async def start_cli(streams=None, *, loop=None):
 
 
 if __name__ == '__main__':
-    loop = asyncio.get_event_loop()
-
     # Arguments
     parser = argparse.ArgumentParser()
     parser.add_argument("--no-cli", action="store_true")
@@ -69,8 +61,12 @@ if __name__ == '__main__':
 
     if args.verbose:
         logging.basicConfig(level=logging.DEBUG)
+    else:
+        logging.basicConfig(level=logging.INFO)
 
     # Start !
+    loop = asyncio.get_event_loop()
+
     ssdp = SSDP(loop=loop)
     loop.run_until_complete(ssdp.init())
 

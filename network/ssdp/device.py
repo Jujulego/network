@@ -1,10 +1,11 @@
+import aiohttp
 import asyncio
+import logging
 
 from enum import Enum, auto
 from network.device import RemoteDevice
 from network.http.capability import HTTPCapability
-from typing import Optional, Set
-from utils.machine import StateMachine
+from typing import Optional, Dict, Set
 from xml.etree import ElementTree as ET
 
 from .message import SSDPMessage
@@ -23,43 +24,50 @@ class States(Enum):
 
 
 # Class
-class SSDPRemoteDevice(StateMachine, RemoteDevice, HTTPCapability):
+class SSDPRemoteDevice(RemoteDevice, HTTPCapability):
     def __init__(self, msg: SSDPMessage, addr: str, *, loop: Optional[asyncio.AbstractEventLoop] = None):
-        StateMachine.__init__(self, States.INACTIVE, loop=loop)
-        RemoteDevice.__init__(self, addr)
+        RemoteDevice.__init__(self, addr, States.INACTIVE, loop=loop)
         HTTPCapability.__init__(self, loop)
 
         # Attributes
         # - metadata
-        self.location = msg.location
-        self.root = False
+        self.friendly_name = None  # type: Optional[str]
         self.urns = set()  # type: Set[URN]
         self.uuid = msg.usn.uuid
 
+        self.metadata = {}  # type: Dict[str,str]
+        self.location = msg.location
+        self.root = False
+
         # - internals
-        self._inactive_handle = None  # type: Optional[asyncio.TimerHandle]
+        self._logger = logging.getLogger(f'ssdp:{self.uuid}')
+        self.__description_task = None   # type: Optional[asyncio.Task]
+        self.__inactivate_handle = None  # type: Optional[asyncio.TimerHandle]
+
+        # Callbacks
+        self.on(States.ACTIVE, self.on_activate)
 
         # Message
-        self.message(msg)
-
-    def __repr__(self):
-        return f'<SSDPRemoteDevice: {self.uuid} ({self.state})>'
+        self.on_message(msg)
 
     # Methods
     def _activate(self, age: int):
         self.state = States.ACTIVE
 
-        if self._inactive_handle is not None:
-            self._inactive_handle.cancel()
+        if self.__inactivate_handle is not None:
+            self.__inactivate_handle.cancel()
 
-        self._inactive_handle = self._loop.call_later(age, self._inactivate)
+        self.__inactivate_handle = self._loop.call_later(age, self._inactivate)
 
     def _inactivate(self):
         self.state = States.INACTIVE
 
-        if self._inactive_handle is not None:
-            self._inactive_handle.cancel()
-            self._inactive_handle = None
+        if self.__inactivate_handle is not None:
+            self.__inactivate_handle.cancel()
+            self.__inactivate_handle = None
+
+        if self.__description_task is not None:
+            self.__description_task.cancel()
 
     async def _get_description(self) -> ET.Element:
         async with self.http_get(self.location) as response:
@@ -68,13 +76,39 @@ class SSDPRemoteDevice(StateMachine, RemoteDevice, HTTPCapability):
 
             return ET.fromstring(data.decode('utf-8'))
 
-    def message(self, msg: SSDPMessage):
+    async def _parse_description(self):
+        self._logger.info('Getting description')
+
+        try:
+            xml = await self._get_description()
+
+            for child in xml.find('device'):
+                if child.tag == 'friendlyName':
+                    self.friendly_name = child.text.strip()
+
+                elif child.tag in ['iconList', 'serviceList', 'deviceList']:
+                    pass
+
+                else:
+                    self.metadata[child.tag] = child.text.strip()
+
+            self._logger.info('Parsed description')
+        except aiohttp.ClientError as err:
+            self._logger.error(f'Error while getting description: {err}')
+
+    # Callbacks
+    def on_activate(self, was: States):
+        if was == States.INACTIVE:
+            if self.__description_task is None or self.__description_task.done():
+                self.__description_task = self._loop.create_task(self._parse_description())
+
+    def on_message(self, msg: SSDPMessage):
         if msg.is_response:
-            self._activate(msg.max_age)
+            self._activate(msg.max_age or 900)
 
         elif msg.method == 'NOTIFY':
             if msg.nts == 'ssdp:alive':
-                self._activate(msg.max_age)
+                self._activate(msg.max_age or 900)
 
             elif msg.nts == 'ssdp:byebye':
                 self._inactivate()
@@ -85,3 +119,8 @@ class SSDPRemoteDevice(StateMachine, RemoteDevice, HTTPCapability):
 
             if msg.usn.is_root:
                 self.root = True
+
+    # Property
+    @property
+    def name(self) -> str:
+        return self.friendly_name or self.uuid
