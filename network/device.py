@@ -1,7 +1,8 @@
 import asyncio
 
-from utils.machine import StateMachine
 from typing import Optional, TypeVar
+
+from .utils.machine import StateMachine
 
 # Types
 S = TypeVar('S')

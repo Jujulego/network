@@ -1,13 +1,14 @@
 from setuptools import setup
 
+# Read dependencies
+with open('requirements.txt') as f:
+    requirements = f.readlines()
+
+# Setup package
 setup(
     name="network",
     version="0.1",
-    packages=["network", "utils"],
-    install_requires=[
-        "asyncio >=3.4.3, <4.0.0",
-        "aiohttp >=3.6.2, <4.0.0",
-        "pyee >=6.0.0, <7.0.0"
-    ],
+    packages=["network"],
+    install_requires=requirements,
     test_suite='tests'
 )
