@@ -10,5 +10,6 @@ setup(
     version="0.1",
     packages=["network"],
     install_requires=requirements,
-    test_suite='tests'
+    test_suite='tests',
+    tests_require=['pytest']
 )
