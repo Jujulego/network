@@ -1,5 +1,7 @@
 import re
 
+from typing import Any
+
 from .urn import URN
 
 # Constants
@@ -34,6 +36,18 @@ class USN:
     def __str__(self) -> str:
         return self.usn
 
+    def __hash__(self):
+        return hash(self.usn)
+
+    def __eq__(self, other: Any) -> bool:
+        if isinstance(other, USN):
+            other = other.usn
+
+        if isinstance(other, str):
+            return self.usn == other
+
+        return False
+
     # Property
     @property
     def usn(self):
@@ -41,6 +55,6 @@ class USN:
             return f'uuid:{self.uuid}::upnp:rootdevice'
 
         elif self.urn is not None:
-            return f'uuid:{self.uuid}:{self.urn}'
+            return f'uuid:{self.uuid}::{self.urn}'
 
         return f'uuid:{self.uuid}'
