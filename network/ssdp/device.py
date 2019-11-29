@@ -1,6 +1,7 @@
 import aiohttp
 import asyncio
 import logging
+import re
 
 from enum import Enum, auto
 from network.device import RemoteDevice
@@ -12,9 +13,20 @@ from .message import SSDPMessage
 from .urn import URN
 
 
+# Constants
+XML_NS = {
+    'upnp': 'urn:schemas-upnp-org:device-1-0'
+}
+NS_RE = re.compile(r'^({(?P<ns>[^}]+)})?(?P<tag>.+?)$')
+
+
 # Utils
 def is_activation_msg(msg: SSDPMessage) -> bool:
     return msg.is_response or (msg.method == 'NOTIFY' and msg.nts == 'ssdp:alive')
+
+
+def strip_ns(tag: str) -> str:
+    return NS_RE.match(tag).groupdict()['tag']
 
 
 # States
@@ -71,7 +83,7 @@ class SSDPRemoteDevice(RemoteDevice, HTTPCapability):
 
     async def _get_description(self) -> ET.Element:
         async with self.http_get(self.location) as response:
-            assert response.status == 200
+            assert response.status == 200, f'Unable to get description (status {response.status})'
             data = await response.read()
 
             return ET.fromstring(data.decode('utf-8'))
@@ -81,20 +93,30 @@ class SSDPRemoteDevice(RemoteDevice, HTTPCapability):
 
         try:
             xml = await self._get_description()
+            xml_device = xml.find('upnp:device', XML_NS)
 
-            for child in xml.find('device'):
-                if child.tag == 'friendlyName':
-                    self.friendly_name = child.text.strip()
+            if xml_device is not None:
+                for child in xml_device:
+                    tag = strip_ns(child.tag)
 
-                elif child.tag in ['iconList', 'serviceList', 'deviceList']:
-                    pass
+                    if tag == 'friendlyName':
+                        self.friendly_name = child.text.strip()
 
-                else:
-                    self.metadata[child.tag] = child.text.strip()
+                    elif tag in ('upnp:iconList', 'upnp:serviceList', 'upnp:deviceList'):
+                        pass
 
-            self._logger.info('Parsed description')
+                    else:
+                        self.metadata[tag] = child.text.strip()
+
+                self._logger.info('Parsed description')
+            else:
+                self._logger.warning('Invalid description no device element')
+
         except aiohttp.ClientError as err:
             self._logger.error(f'Error while getting description: {err}')
+
+        except AssertionError as err:
+            self._logger.error(str(err))
 
     # Callbacks
     def on_activate(self, was: States):
