@@ -21,7 +21,7 @@ class SSDPMessage:
             self._parse_message(message)
         else:
             self.is_response = is_response
-            self.method = "" if is_response else method
+            self.method = None if is_response else method
             self.http_version = "HTTP/1.1"
 
             self.headers = headers
@@ -29,7 +29,7 @@ class SSDPMessage:
                 self.headers['HOST'] = "239.255.255.250:1900"
 
     def __repr__(self):
-        return "<ssdp.SSDPMessage: {}>".format(self.method)
+        return "<ssdp.SSDPMessage: {}>".format(self.method or "RESPONSE")
 
     # Methods
     def _parse_message(self, message):
@@ -43,6 +43,7 @@ class SSDPMessage:
 
         if rq[0] == 'HTTP/1.1':
             self.is_response = True
+            self.method = None
             self.http_version = rq[0]
 
         else:
@@ -82,7 +83,7 @@ class SSDPMessage:
         if len(parts) == 1:
             return parts[0], 1900
 
-        return parts[0], int(parts[0])
+        return parts[0], int(parts[1])
 
     # - NOTIFY headers
     @property
@@ -149,12 +150,14 @@ class SSDPMessage:
         self.headers['MAN'] = man
 
     @property
-    def mx(self) -> Optional[str]:
-        return self.headers.get('MX')
+    def mx(self) -> Optional[int]:
+        mx = self.headers.get('MX')
+
+        return None if mx is None else int(mx)
 
     @mx.setter
-    def mx(self, mx: str):
-        self.headers['MX'] = mx
+    def mx(self, mx: int):
+        self.headers['MX'] = str(mx)
 
     @property
     def st(self) -> Union[URN, str, None]:
