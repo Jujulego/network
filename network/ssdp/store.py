@@ -82,5 +82,4 @@ class SSDPStore(pyee.AsyncIOEventEmitter):
             self.emit('new', device)
             logger.info(f'New device on {addr[0]}: {uuid}')
 
-        else:
-            self._devices[uuid].on_message(msg)
+        self._devices[uuid].on_message(msg)
