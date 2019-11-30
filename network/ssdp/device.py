@@ -14,7 +14,7 @@ from .service import SSDPService
 from .urn import URN
 
 # Constants
-XML_NS = {
+XML_DEVICE_NS = {
     'upnp': 'urn:schemas-upnp-org:device-1-0'
 }
 
@@ -87,7 +87,7 @@ class SSDPRemoteDevice(RemoteDevice, HTTPCapability):
 
         try:
             xml = await self._get_description()
-            xml_device = xml.find('upnp:device', XML_NS)
+            xml_device = xml.find('upnp:device', XML_DEVICE_NS)
 
             if xml_device is not None:
                 # Parse xml
