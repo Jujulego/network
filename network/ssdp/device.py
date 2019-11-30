@@ -1,7 +1,6 @@
 import aiohttp
 import asyncio
 import logging
-import re
 
 from enum import Enum, auto
 from network.device import RemoteDevice

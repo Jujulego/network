@@ -9,58 +9,58 @@ usn = f'uuid:{uuid}::{urn}'
 
 # Utils
 def notify_alive_msg(nt: str) -> str:
-    return f'NOTIFY * HTTP/1.1\r' \
-           f'HOST: 239.255.255.250:1900\r' \
-           f'CACHE-CONTROL: max-age=900\r' \
-           f'LOCATION: http://example.com/\r' \
-           f'NT: {nt}\r' \
-           f'NTS: ssdp:alive\r' \
-           f'SERVER: OS/version UPnP/2.0 product/version\r' \
-           f'USN: {usn}\r' \
-           f'BOOTID.UPNP.ORG: 5557\r' \
-           f'CONFIGID.UPNP.ORG: 155665\r' \
-           f'SEARCHPORT.UPNP.ORG: 55254\r' \
-           f'\r' \
+    return f'NOTIFY * HTTP/1.1\r\n' \
+           f'HOST: 239.255.255.250:1900\r\n' \
+           f'CACHE-CONTROL: max-age=900\r\n' \
+           f'LOCATION: http://example.com/\r\n' \
+           f'NT: {nt}\r\n' \
+           f'NTS: ssdp:alive\r\n' \
+           f'SERVER: OS/version UPnP/2.0 product/version\r\n' \
+           f'USN: {usn}\r\n' \
+           f'BOOTID.UPNP.ORG: 5557\r\n' \
+           f'CONFIGID.UPNP.ORG: 155665\r\n' \
+           f'SEARCHPORT.UPNP.ORG: 55254\r\n' \
+           f'\r\n' \
            f''
 
 
 def notify_byebye_msg(nt: str) -> str:
-    return f'NOTIFY * HTTP/1.1\r' \
-           f'HOST: 239.255.255.250:1900\r' \
-           f'NT: {nt}\r' \
-           f'NTS: ssdp:byebye\r' \
-           f'USN: {usn}\r' \
-           f'BOOTID.UPNP.ORG: 5557\r' \
-           f'CONFIGID.UPNP.ORG: 155665\r' \
-           f'\r' \
+    return f'NOTIFY * HTTP/1.1\r\n' \
+           f'HOST: 239.255.255.250:1900\r\n' \
+           f'NT: {nt}\r\n' \
+           f'NTS: ssdp:byebye\r\n' \
+           f'USN: {usn}\r\n' \
+           f'BOOTID.UPNP.ORG: 5557\r\n' \
+           f'CONFIGID.UPNP.ORG: 155665\r\n' \
+           f'\r\n' \
            f''
 
 
 def msearch_msg(st: str) -> str:
-    return f'MSEARCH * HTTP/1.1\r' \
-           f'HOST: 239.255.255.250:1900\r' \
-           f'MAN: ssdp:discover\r' \
-           f'MX: 5\r' \
-           f'ST: {st}\r' \
-           f'USER-AGENT: OS/version UPnP/2.0 product/version\r' \
-           f'BOOTID.UPNP.ORG: 5557\r' \
-           f'CONFIGID.UPNP.ORG: 155665\r' \
-           f'\r' \
+    return f'MSEARCH * HTTP/1.1\r\n' \
+           f'HOST: 239.255.255.250:1900\r\n' \
+           f'MAN: ssdp:discover\r\n' \
+           f'MX: 5\r\n' \
+           f'ST: {st}\r\n' \
+           f'USER-AGENT: OS/version UPnP/2.0 product/version\r\n' \
+           f'BOOTID.UPNP.ORG: 5557\r\n' \
+           f'CONFIGID.UPNP.ORG: 155665\r\n' \
+           f'\r\n' \
            f''
 
 
 def msearch_response_msg(st: str) -> str:
-    return f'HTTP/1.1 200 OK\r' \
-           f'CACHE-CONTROL: max-age=900\r' \
-           f'EXT:\r' \
-           f'LOCATION: http://example.com/\r' \
-           f'SERVER: OS/version UPnP/2.0 product/version\r' \
-           f'ST: {st}\r' \
-           f'USN: {usn}\r' \
-           f'BOOTID.UPNP.ORG: 5557\r' \
-           f'CONFIGID.UPNP.ORG: 155665\r' \
-           f'SEARCHPORT.UPNP.ORG: 55254\r' \
-           f'\r' \
+    return f'HTTP/1.1 200 OK\r\n' \
+           f'CACHE-CONTROL: max-age=900\r\n' \
+           f'EXT: \r\n' \
+           f'LOCATION: http://example.com/\r\n' \
+           f'SERVER: OS/version UPnP/2.0 product/version\r\n' \
+           f'ST: {st}\r\n' \
+           f'USN: {usn}\r\n' \
+           f'BOOTID.UPNP.ORG: 5557\r\n' \
+           f'CONFIGID.UPNP.ORG: 155665\r\n' \
+           f'SEARCHPORT.UPNP.ORG: 55254\r\n' \
+           f'\r\n' \
            f''
 
 
@@ -187,3 +187,44 @@ def test_msearch_response_parse():
 
     assert isinstance(msg.st, URN)
     assert msg.st == urn
+
+
+def test_request_generate():
+    msg = SSDPMessage(
+        method='NOTIFY',
+        headers={
+            'HOST': '239.255.255.250:1900',
+            'CACHE-CONTROL': 'max-age=900',
+            'LOCATION': 'http://example.com/',
+            'NT': 'upnp:rootdevice',
+            'NTS': 'ssdp:alive',
+            'SERVER': 'OS/version UPnP/2.0 product/version',
+            'USN': usn,
+            'BOOTID.UPNP.ORG': '5557',
+            'CONFIGID.UPNP.ORG': '155665',
+            'SEARCHPORT.UPNP.ORG': '55254'
+        }
+    )
+
+    # Check message kind
+    assert msg.message == notify_alive_msg('upnp:rootdevice')
+
+
+def test_response_generate():
+    msg = SSDPMessage(
+        is_response=True,
+        headers={
+            'CACHE-CONTROL': 'max-age=900',
+            'EXT': '',
+            'LOCATION': 'http://example.com/',
+            'SERVER': 'OS/version UPnP/2.0 product/version',
+            'ST': 'upnp:rootdevice',
+            'USN': usn,
+            'BOOTID.UPNP.ORG': '5557',
+            'CONFIGID.UPNP.ORG': '155665',
+            'SEARCHPORT.UPNP.ORG': '55254'
+        }
+    )
+
+    # Check message kind
+    assert msg.message == msearch_response_msg('upnp:rootdevice')

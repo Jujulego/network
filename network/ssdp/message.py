@@ -25,7 +25,7 @@ class SSDPMessage:
             self.http_version = "HTTP/1.1"
 
             self.headers = headers
-            if 'HOST' not in self.headers:
+            if not is_response and 'HOST' not in self.headers:
                 self.headers['HOST'] = "239.255.255.250:1900"
 
     def __repr__(self):
