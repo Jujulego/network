@@ -45,7 +45,7 @@ class SOAPResponse:
         detail = fault.find('detail')
         err = detail.find('UPnPError')
 
-        self.error_code = err.find('errorCode').text
+        self.error_code = int(err.find('errorCode').text)
         self.error_description = err.find('errorDescription').text
 
     def _parse_response(self, xml: ET.Element):
