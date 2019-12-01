@@ -42,5 +42,7 @@ class SOAPRequest:
             arg.text = v
 
         xml = ET.tostring(root, 'utf-8')
-        xml = ET.canonicalize(xml, strip_text=True)
+        if hasattr(ET, 'canonicalize'):
+            xml = ET.canonicalize(xml, strip_text=True)
+
         return xml

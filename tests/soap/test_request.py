@@ -1,3 +1,5 @@
+import sys
+
 from network.soap import SOAPRequest
 from network.ssdp import URN
 
@@ -5,6 +7,25 @@ from network.ssdp import URN
 url = 'http://192.168.1.1:5885/control/'
 stype = URN('urn:schemas-upnp-org:service:serviceType:ver')
 
+if sys.version_info[1] >= 8:
+    # since 3.8 (use of xml.canonicalize)
+    xml = '<ns0:Envelope xmlns:ns0="http://schemas.xmlsoap.org/soap/envelope/" ns0:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">'\
+              '<ns0:Body>' \
+                  '<ns1:test xmlns:ns1="urn:schemas-upnp-org:service:serviceType:ver">' \
+                      '<ns1:arg1>458</ns1:arg1>' \
+                      '<ns1:arg2>885</ns1:arg2>' \
+                  '</ns1:test>' \
+              '</ns0:Body>' \
+          '</ns0:Envelope>'
+else:
+    xml = '<ns0:Envelope xmlns:ns0="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ns1="urn:schemas-upnp-org:service:serviceType:ver" ns0:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">' \
+              '<ns0:Body>' \
+                  '<ns1:test>' \
+                      '<ns1:arg1>458</ns1:arg1>' \
+                      '<ns1:arg2>885</ns1:arg2>' \
+                  '</ns1:test>' \
+              '</ns0:Body>' \
+          '</ns0:Envelope>'
 
 # Test cases
 def test_request_namespaces():
@@ -27,8 +48,7 @@ def test_request_headers():
 
 def test_request_body():
     req = SOAPRequest(url, stype, 'test', {'arg1': '458', 'arg2': '885'})
-    result = '<ns0:Envelope xmlns:ns0="http://schemas.xmlsoap.org/soap/envelope/" ns0:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"><ns0:Body><ns1:test xmlns:ns1="urn:schemas-upnp-org:service:serviceType:ver"><ns1:arg1>458</ns1:arg1><ns1:arg2>885</ns1:arg2></ns1:test></ns0:Body></ns0:Envelope>'
 
     # Check body
     body = req.body()
-    assert body == result
+    assert body == xml
