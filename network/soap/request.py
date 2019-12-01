@@ -1,4 +1,3 @@
-from network.ssdp.urn import URN
 from network.utils.xml import add_ns
 from typing import Dict
 from xml.etree import ElementTree as ET
@@ -8,18 +7,18 @@ from .constants import XML_SOAP_NS
 
 # Class
 class SOAPRequest:
-    def __init__(self, control_url: str, service_type: URN, action: str, arguments: Dict[str, str]):
+    def __init__(self, control_url: str, service_type: str, action: str, args: Dict[str, str]):
         # Attributes
         self.control_url = control_url
         self.service_type = service_type
         self.action = action
-        self.arguments = arguments
+        self.args = args
 
     # Methods
     def xml_ns(self) -> Dict[str, str]:
         return {
             **XML_SOAP_NS,
-            'upnp': self.service_type.urn
+            'upnp': self.service_type
         }
 
     def headers(self):
@@ -37,7 +36,7 @@ class SOAPRequest:
         body = ET.SubElement(root, add_ns('soap:Body', xml_ns))
         action = ET.SubElement(body, add_ns(f'upnp:{self.action}', xml_ns))
 
-        for n, v in self.arguments.items():
+        for n, v in self.args.items():
             arg = ET.SubElement(action, n)
             arg.text = v
 

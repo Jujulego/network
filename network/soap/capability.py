@@ -1,5 +1,4 @@
 from network.http import HTTPCapability
-from network.ssdp.urn import URN
 from typing import Dict
 
 from .error import SOAPError
@@ -9,8 +8,8 @@ from .response import SOAPResponse
 
 class SOAPCapability(HTTPCapability):
     # Methods
-    async def soap_call(self, control_url: str, service_type: URN, action: str, arguments: Dict[str, str]) -> Dict[str,str]:
-        req = SOAPRequest(control_url, service_type, action, arguments)
+    async def soap_call(self, control_url: str, service_type: str, action: str, args: Dict[str, str]) -> Dict[str, str]:
+        req = SOAPRequest(control_url, service_type, action, args)
         rep = await self.soap_send(req)
 
         if rep.is_error:

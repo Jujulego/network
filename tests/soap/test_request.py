@@ -1,5 +1,5 @@
 from network.soap import SOAPRequest
-from network.ssdp import URN
+from network.ssdp.urn import URN
 
 # Constants
 url = 'http://192.168.1.1:5885/control/'

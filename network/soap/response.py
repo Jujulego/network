@@ -1,4 +1,3 @@
-from network.ssdp.urn import URN
 from typing import Dict
 from xml.etree import ElementTree as ET
 
@@ -7,7 +6,7 @@ from .constants import XML_SOAP_NS
 
 # Class
 class SOAPResponse:
-    def __init__(self, service_type: URN, action: str, data: str, is_error: bool = False):
+    def __init__(self, service_type: str, action: str, data: str, is_error: bool = False):
         # Attributes
         self.is_error = is_error
         self.service_type = service_type
@@ -19,7 +18,7 @@ class SOAPResponse:
     def xml_ns(self) -> Dict[str, str]:
         return {
             **XML_SOAP_NS,
-            'upnp': self.service_type.urn
+            'upnp': self.service_type
         }
 
     def _parse_data(self, data: str):
