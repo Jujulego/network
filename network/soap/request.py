@@ -41,4 +41,6 @@ class SOAPRequest:
             arg = ET.SubElement(action, add_ns(f'upnp:{n}', xml_ns))
             arg.text = v
 
-        return ET.tostring(root, 'utf-8')
+        xml = ET.tostring(root, 'utf-8')
+        xml = ET.canonicalize(xml, strip_text=True)
+        return xml
