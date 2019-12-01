@@ -44,11 +44,11 @@ class SSDPRemoteDevice(RemoteDevice, HTTPCapability):
         self.urns = set()  # type: Set[URN]
         self.uuid = msg.usn.uuid
 
-        self.metadata = {}     # type: Dict[str,str]
-        self.services = set()  # type: Set[SSDPService]
+        self.metadata = {}  # type: Dict[str,str]
 
         # - internals
-        self._logger = logging.getLogger(f'ssdp:{self.uuid}')
+        self._logger = logging.getLogger(f'ssdp:device:{self.uuid}')
+        self._services = {}  # type: Dict[str,SSDPService]
         self.__description_task = None   # type: Optional[asyncio.Task]
         self.__inactivate_handle = None  # type: Optional[asyncio.TimerHandle]
 
@@ -96,15 +96,19 @@ class SSDPRemoteDevice(RemoteDevice, HTTPCapability):
 
                     if tag == 'friendlyName':
                         self.friendly_name = child.text.strip()
+
                     elif tag == 'serviceList':
-                        self.services.add(SSDPService(child, loop=self._loop))
+                        for xs in child:
+                            service = SSDPService(xs, loop=self._loop)
+                            self._services[service.id] = service
+
                     elif tag in ('iconList', 'deviceList'):
                         pass
                     else:
                         self.metadata[tag] = child.text.strip()
 
                 # Refresh services
-                for service in self.services:
+                for service in self._services.values():
                     service.up()
 
                 self.emit('ready', self)
@@ -125,7 +129,7 @@ class SSDPRemoteDevice(RemoteDevice, HTTPCapability):
                 self.__description_task = self._loop.create_task(self._parse_description())
 
     def on_inactivate(self, was: DState):
-        for service in self.services:
+        for service in self._services.values():
             service.down()
 
     def on_message(self, msg: SSDPMessage):
@@ -145,6 +149,9 @@ class SSDPRemoteDevice(RemoteDevice, HTTPCapability):
 
             if msg.usn.is_root:
                 self.root = True
+
+    def service(self, sid: str) -> SSDPService:
+        return self._services[sid]
 
     # Property
     @property

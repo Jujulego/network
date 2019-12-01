@@ -1,4 +1,6 @@
+import aiohttp
 import asyncio
+import logging
 
 from enum import Enum, auto
 from network.http.capability import HTTPCapability
@@ -42,6 +44,7 @@ class SSDPService(StateMachine, HTTPCapability):
         # - internals
         self._actions = {}  # type: Dict[str, Action]
         self._state_vars = {}  # type: Dict[str, StateVariable]
+        self._logger = logging.getLogger(f'ssdp:service:{self.id}')
 
         self.__up_task = None  # type: Optional[asyncio.Task]
 
@@ -64,24 +67,34 @@ class SSDPService(StateMachine, HTTPCapability):
                 self.__up_task = self._loop.create_task(self._up())
 
     async def _up(self):
-        xml = await self._get_description()
+        self._logger.info('Getting description')
 
-        # Gather actions
-        self._actions = {}
-        for child in xml.find('upnp:actionList', XML_SERVICE_NS):
-            action = Action(child, self)
+        try:
+            xml = await self._get_description()
 
-            self._actions[action.name] = action
+            # Gather actions
+            self._actions = {}
+            for child in xml.find('upnp:actionList', XML_SERVICE_NS):
+                action = Action(child, self)
 
-        # Gather state
-        self._state_vars = {}
-        for child in xml.find('upnp:serviceStateTable', XML_SERVICE_NS):
-            state_var = StateVariable(child, self)
+                self._actions[action.name] = action
 
-            self._state_vars[state_var.name] = state_var
+            # Gather state
+            self._state_vars = {}
+            for child in xml.find('upnp:serviceStateTable', XML_SERVICE_NS):
+                state_var = StateVariable(child, self)
 
-        # Service is ready to be used
-        self.state = SState.UP
+                self._state_vars[state_var.name] = state_var
+
+            # Service is ready to be used
+            self.state = SState.UP
+            self._logger.info('Ready !')
+
+        except aiohttp.ClientError as err:
+            self._logger.error(f'Error while getting description: {err}')
+
+        except AssertionError as err:
+            self._logger.error(str(err))
 
     async def _get_description(self) -> ET.Element:
         async with self.http_get(self.scdp) as response:
@@ -96,6 +109,12 @@ class SSDPService(StateMachine, HTTPCapability):
 
             if self.__up_task is not None:
                 self.__up_task.cancel()
+
+    def action(self, name: str) -> 'Action':
+        return self._actions[name]
+
+    def state_variable(self, name: str) -> 'StateVariable':
+        return self._state_vars[name]
 
 
 class Action:
