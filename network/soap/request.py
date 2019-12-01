@@ -38,7 +38,7 @@ class SOAPRequest:
         action = ET.SubElement(body, add_ns(f'upnp:{self.action}', xml_ns))
 
         for n, v in self.arguments.items():
-            arg = ET.SubElement(action, add_ns(f'upnp:{n}', xml_ns))
+            arg = ET.SubElement(action, n)
             arg.text = v
 
         xml = ET.tostring(root, 'utf-8')

@@ -3,7 +3,7 @@ import asyncio
 import logging
 
 from enum import Enum, auto
-from network.http.capability import HTTPCapability
+from network.http import HTTPCapability
 from network.utils.machine import StateMachine
 from typing import Dict, Optional
 from xml.etree import ElementTree as ET
@@ -93,7 +93,7 @@ class SSDPService(StateMachine, HTTPCapability):
             self._logger.error(str(err))
 
     async def _get_description(self) -> ET.Element:
-        async with self.http_get(self.scdp) as response:
+        async with self.http_session.get(self.scdp) as response:
             assert response.status == 200, f'Unable to get description (status {response.status})'
             data = await response.read()
 

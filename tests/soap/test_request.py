@@ -1,5 +1,3 @@
-import sys
-
 from network.soap import SOAPRequest
 from network.ssdp import URN
 
@@ -10,8 +8,8 @@ stype = URN('urn:schemas-upnp-org:service:serviceType:ver')
 xml = ('<ns0:Envelope xmlns:ns0="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ns1="urn:schemas-upnp-org:service:serviceType:ver" ns0:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">'
           '<ns0:Body>'
               '<ns1:test>'
-                  '<ns1:arg1>458</ns1:arg1>'
-                  '<ns1:arg2>885</ns1:arg2>'
+                  '<arg1>458</arg1>'
+                  '<arg2>885</arg2>'
               '</ns1:test>'
           '</ns0:Body>'
       '</ns0:Envelope>').encode('utf-8')

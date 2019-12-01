@@ -4,7 +4,7 @@ import logging
 
 from enum import Enum, auto
 from network.device import RemoteDevice
-from network.http.capability import HTTPCapability
+from network.http import HTTPCapability
 from network.utils.xml import strip_ns
 from typing import Optional, Dict, Set
 from xml.etree import ElementTree as ET
@@ -72,7 +72,7 @@ class SSDPRemoteDevice(RemoteDevice, HTTPCapability):
             self.__description_task.cancel()
 
     async def _get_description(self) -> ET.Element:
-        async with self.http_get(self.location) as response:
+        async with self.http_session.get(self.location) as response:
             assert response.status == 200, f'Unable to get description (status {response.status})'
             data = await response.read()
 
