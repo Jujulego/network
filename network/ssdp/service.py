@@ -3,9 +3,9 @@ import asyncio
 import logging
 
 from enum import Enum, auto
-from network.http import HTTPCapability
+from network.soap import SOAPCapability
 from network.utils.machine import StateMachine
-from typing import Dict, Optional
+from typing import Any, Dict, Optional, Union
 from xml.etree import ElementTree as ET
 
 from .constants import XML_DEVICE_NS, XML_SERVICE_NS
@@ -25,10 +25,10 @@ class SState(Enum):
 
 
 # Classes
-class SSDPService(StateMachine, HTTPCapability):
+class SSDPService(StateMachine, SOAPCapability):
     def __init__(self, xml: ET.Element, *, loop: Optional[asyncio.AbstractEventLoop] = None):
         StateMachine.__init__(self, SState.DOWN, loop=loop)
-        HTTPCapability.__init__(self, loop=loop)
+        SOAPCapability.__init__(self, loop=loop)
 
         # Parse xml
         self.id = xml.find('upnp:serviceId', XML_DEVICE_NS).text
@@ -57,6 +57,29 @@ class SSDPService(StateMachine, HTTPCapability):
         return False
 
     # Methodes
+    async def call(self, action: Union[str, 'Action'], args: Dict[str, Any]) -> Dict[str, Any]:
+        if isinstance(action, str):
+            action = self.action(action)
+
+        # Convert arguments
+        soap_args = {}
+
+        for n, v in args.items():
+            var = action.argument(n).state_variable
+            soap_args[n] = var.type.from_python(v)
+
+        # Request
+        results = await self.soap_call(self.control, self.type, action.name, soap_args)
+
+        # Convert response
+        py_resp = {}
+
+        for n, v in results:
+            var = action.argument(n).state_variable
+            py_resp[n] = var.type.to_python(v)
+
+        return py_resp
+
     def up(self):
         if self.state == SState.DOWN:
             if self.__up_task is None or self.__up_task.done():
@@ -117,16 +140,32 @@ class Action:
     def __init__(self, xml: ET.Element, service: SSDPService):
         # Attributes
         self.name = xml.find('upnp:name', XML_SERVICE_NS).text
-        self.arguments = [
-            Argument(child, service)
-            for child in xml.find('upnp:argumentList', XML_SERVICE_NS)
-        ]
+        self._arguments = {}  # type: Dict[str, Argument]
+
+        for child in xml.find('upnp:argumentList', XML_SERVICE_NS):
+            arg = Argument(child, service)
+            self._arguments[arg.name] = arg
 
         # - internals
         self._service = service
 
     def __repr__(self):
         return f'<Action: {self.name}>'
+
+    def __call__(self, **kwargs):
+        return self.call(**kwargs)
+
+    # Methods
+    def argument(self, name: str) -> 'Argument':
+        return self._arguments[name]
+
+    async def call(self, **kwargs) -> Dict[str, Any]:
+        # check args
+        for n in kwargs:
+            assert n in self._arguments
+
+        # call
+        return await self._service.call(self, kwargs)
 
 
 class Argument:
@@ -138,10 +177,15 @@ class Argument:
 
         # - internals
         self._service = service
-        self._related_state_var = xml.find('upnp:relatedStateVariable', XML_SERVICE_NS).text
+        self._state_variable = xml.find('upnp:relatedStateVariable', XML_SERVICE_NS).text
 
     def __repr__(self):
         return f'<Argument: {self.name}>'
+
+    # Properties
+    @property
+    def state_variable(self):
+        return self._service.state_variable(self._state_variable)
 
 
 class StateVariable:
