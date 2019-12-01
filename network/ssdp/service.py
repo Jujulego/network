@@ -8,13 +8,9 @@ from network.utils.machine import StateMachine
 from typing import Dict, Optional
 from xml.etree import ElementTree as ET
 
-# Constants
-XML_DEVICE_NS = {
-    'upnp': 'urn:schemas-upnp-org:device-1-0'
-}
-XML_SERVICE_NS = {
-    'upnp': 'urn:schemas-upnp-org:service-1-0'
-}
+from .constants import XML_DEVICE_NS, XML_SERVICE_NS
+from .urn import URN
+from .types import SSDPType, get_type
 
 
 # Utils
@@ -36,7 +32,7 @@ class SSDPService(StateMachine, HTTPCapability):
 
         # Parse xml
         self.id = xml.find('upnp:serviceId', XML_DEVICE_NS).text
-        self.type = xml.find('upnp:serviceType', XML_DEVICE_NS).text
+        self.type = URN(xml.find('upnp:serviceType', XML_DEVICE_NS).text)
         self.scdp = xml.find('upnp:SCDPURL', XML_DEVICE_NS).text
         self.control = xml.find('upnp:controlURL', XML_DEVICE_NS).text
         self.event_sub = xml.find('upnp:eventSubURL', XML_DEVICE_NS).text
@@ -157,14 +153,17 @@ class StateVariable:
         self.name = xml.find('upnp:name', XML_SERVICE_NS).text
         self.default_value = xml_text(xml.find('upnp:defaultValue', XML_SERVICE_NS))
 
+        xtype = xml.find('upnp:dataType', XML_SERVICE_NS)
+        self.type = get_type(xtype.attrib.get('type', xtype.text))
+
         xavl = xml.find('upnp:allowedValueList', XML_SERVICE_NS)
-        self.allowed_values = [child.text for child in xavl or None]
+        self.allowed_values = [
+            self.type.to_python(child.text)
+            for child in xavl or None
+        ]
 
         xavr = xml.find('upnp:allowedValueRange', XML_SERVICE_NS)
-        self.allowed_range = None if xavr is None else ValueRange(xavr)
-
-        xtype = xml.find('upnp:dataType', XML_SERVICE_NS)
-        self.type = xtype.attrib.get('type', xtype.text)
+        self.allowed_range = None if xavr is None else ValueRange(xavr, self.type)
 
         # - internals
         self._service = service
@@ -174,7 +173,9 @@ class StateVariable:
 
 
 class ValueRange:
-    def __init__(self, xml: ET.Element):
-        self._minimum = xml.find('upnp:minimum', XML_SERVICE_NS).text
-        self._maximum = xml.find('upnp:maximum', XML_SERVICE_NS).text
-        self._step = xml_text(xml.find('upnp:step', XML_SERVICE_NS))
+    def __init__(self, xml: ET.Element, stype: SSDPType):
+        self.minimum = stype.from_python(xml.find('upnp:minimum', XML_SERVICE_NS).text)
+        self.maximum = stype.from_python(xml.find('upnp:maximum', XML_SERVICE_NS).text)
+
+        step = xml_text(xml.find('upnp:step', XML_SERVICE_NS))
+        self.step = stype.from_python(step)

@@ -9,14 +9,10 @@ from network.utils.xml import strip_ns
 from typing import Optional, Dict, Set
 from xml.etree import ElementTree as ET
 
+from .constants import XML_DEVICE_NS
 from .message import SSDPMessage
 from .service import SSDPService
 from .urn import URN
-
-# Constants
-XML_DEVICE_NS = {
-    'upnp': 'urn:schemas-upnp-org:device-1-0'
-}
 
 
 # Utils
