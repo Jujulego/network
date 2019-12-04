@@ -17,7 +17,7 @@ xml = ('<ns0:Envelope xmlns:ns0="http://schemas.xmlsoap.org/soap/envelope/" xmln
 
 # Test cases
 def test_request_namespaces():
-    req = SOAPRequest(url, stype, 'test', {'arg1': '458', 'arg2': '885'})
+    req = SOAPRequest(url, stype.urn, 'test', {'arg1': '458', 'arg2': '885'})
 
     # Check namespaces
     ns = req.xml_ns()
@@ -26,7 +26,7 @@ def test_request_namespaces():
 
 
 def test_request_headers():
-    req = SOAPRequest(url, stype, 'test', {'arg1': '458', 'arg2': '885'})
+    req = SOAPRequest(url, stype.urn, 'test', {'arg1': '458', 'arg2': '885'})
 
     # Check headers
     headers = req.headers()
@@ -35,7 +35,7 @@ def test_request_headers():
 
 
 def test_request_body():
-    req = SOAPRequest(url, stype, 'test', {'arg1': '458', 'arg2': '885'})
+    req = SOAPRequest(url, stype.urn, 'test', {'arg1': '458', 'arg2': '885'})
 
     # Check body
     body = req.body()
