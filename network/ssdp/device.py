@@ -4,7 +4,6 @@ import logging
 
 from enum import Enum, auto
 from network.device import RemoteDevice
-from network.http import HTTPCapability
 from network.utils.xml import strip_ns
 from typing import Optional, Dict, Set
 from xml.etree import ElementTree as ET
@@ -27,10 +26,9 @@ class DState(Enum):
 
 
 # Class
-class SSDPRemoteDevice(RemoteDevice, HTTPCapability):
+class SSDPRemoteDevice(RemoteDevice):
     def __init__(self, msg: SSDPMessage, addr: str, *, loop: Optional[asyncio.AbstractEventLoop] = None):
-        RemoteDevice.__init__(self, addr, DState.INACTIVE, loop=loop)
-        HTTPCapability.__init__(self, loop=loop)
+        super().__init__(addr, DState.INACTIVE, loop=loop)
 
         # Attributes
         # - metadata
@@ -72,11 +70,12 @@ class SSDPRemoteDevice(RemoteDevice, HTTPCapability):
             self.__description_task.cancel()
 
     async def _get_description(self) -> ET.Element:
-        async with self.http_session.get(self.location) as response:
-            assert response.status == 200, f'Unable to get description (status {response.status})'
-            data = await response.read()
+        async with aiohttp.ClientSession(loop=self._loop) as session:
+            async with session.get(self.location) as response:
+                assert response.status == 200, f'Unable to get description (status {response.status})'
+                data = await response.read()
 
-            return ET.fromstring(data.decode('utf-8'))
+                return ET.fromstring(data.decode('utf-8'))
 
     async def _parse_description(self):
         self._logger.info('Getting description')
@@ -100,7 +99,7 @@ class SSDPRemoteDevice(RemoteDevice, HTTPCapability):
 
                     elif tag in ('iconList', 'deviceList'):
                         pass
-                    else:
+                    elif child.text is not None:
                         self.metadata[tag] = child.text.strip()
 
                 # Refresh services
@@ -115,8 +114,8 @@ class SSDPRemoteDevice(RemoteDevice, HTTPCapability):
         except aiohttp.ClientError as err:
             self._logger.error(f'Error while getting description: {err}')
 
-        except AssertionError as err:
-            self._logger.error(str(err))
+        except Exception:
+            self._logger.exception(f'Error while parsing description ({self.location})')
 
     # Callbacks
     def on_activate(self, was: DState):

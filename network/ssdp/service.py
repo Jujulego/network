@@ -33,7 +33,7 @@ class SSDPService(StateMachine, SOAPCapability):
         # Parse xml
         self.id = xml.find('upnp:serviceId', XML_DEVICE_NS).text
         self.type = URN(xml.find('upnp:serviceType', XML_DEVICE_NS).text)
-        self.scdp = xml.find('upnp:SCDPURL', XML_DEVICE_NS).text
+        self.scdp = xml.find('upnp:SCPDURL', XML_DEVICE_NS).text
         self.control = xml.find('upnp:controlURL', XML_DEVICE_NS).text
         self.event_sub = xml.find('upnp:eventSubURL', XML_DEVICE_NS).text
 
@@ -69,7 +69,7 @@ class SSDPService(StateMachine, SOAPCapability):
             soap_args[n] = var.type.from_python(v)
 
         # Request
-        results = await self.soap_call(self.control, self.type, action.name, soap_args)
+        results = await self.soap_call(self.control, self.type.urn, action.name, soap_args)
 
         # Convert response
         py_resp = {}
@@ -112,15 +112,16 @@ class SSDPService(StateMachine, SOAPCapability):
         except aiohttp.ClientError as err:
             self._logger.error(f'Error while getting description: {err}')
 
-        except AssertionError as err:
-            self._logger.error(str(err))
+        except Exception:
+            self._logger.exception(f'Error while parsing description ({self.scdp})')
 
     async def _get_description(self) -> ET.Element:
-        async with self.http_session.get(self.scdp) as response:
-            assert response.status == 200, f'Unable to get description (status {response.status})'
-            data = await response.read()
+        async with aiohttp.ClientSession(loop=self._loop) as session:
+            async with session.get(self.scdp) as response:
+                assert response.status == 200, f'Unable to get description (status {response.status})'
+                data = await response.read()
 
-            return ET.fromstring(data.decode('utf-8'))
+                return ET.fromstring(data.decode('utf-8'))
 
     def down(self):
         if self.state == SState.UP:
