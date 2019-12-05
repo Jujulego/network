@@ -6,6 +6,7 @@ from enum import Enum, auto
 from network.soap import SOAPCapability
 from network.utils.machine import StateMachine
 from typing import Any, Dict, Optional, Union
+from urllib.parse import urljoin
 from xml.etree import ElementTree as ET
 
 from .constants import XML_DEVICE_NS, XML_SERVICE_NS
@@ -26,16 +27,16 @@ class SState(Enum):
 
 # Classes
 class SSDPService(StateMachine, SOAPCapability):
-    def __init__(self, xml: ET.Element, *, loop: Optional[asyncio.AbstractEventLoop] = None):
+    def __init__(self, xml: ET.Element, base_url: str, *, loop: Optional[asyncio.AbstractEventLoop] = None):
         StateMachine.__init__(self, SState.DOWN, loop=loop)
         SOAPCapability.__init__(self, loop=loop)
 
         # Parse xml
         self.id = xml.find('upnp:serviceId', XML_DEVICE_NS).text
         self.type = URN(xml.find('upnp:serviceType', XML_DEVICE_NS).text)
-        self.scdp = xml.find('upnp:SCPDURL', XML_DEVICE_NS).text
-        self.control = xml.find('upnp:controlURL', XML_DEVICE_NS).text
-        self.event_sub = xml.find('upnp:eventSubURL', XML_DEVICE_NS).text
+        self.scpd = urljoin(base_url, xml.find('upnp:SCPDURL', XML_DEVICE_NS).text)
+        self.control = urljoin(base_url, xml.find('upnp:controlURL', XML_DEVICE_NS).text)
+        self.event_sub = urljoin(base_url, xml.find('upnp:eventSubURL', XML_DEVICE_NS).text)
 
         # - internals
         self._actions = {}  # type: Dict[str, Action]
@@ -74,7 +75,7 @@ class SSDPService(StateMachine, SOAPCapability):
         # Convert response
         py_resp = {}
 
-        for n, v in results:
+        for n, v in results.items():
             var = action.argument(n).state_variable
             py_resp[n] = var.type.to_python(v)
 
@@ -113,11 +114,11 @@ class SSDPService(StateMachine, SOAPCapability):
             self._logger.error(f'Error while getting description: {err}')
 
         except Exception:
-            self._logger.exception(f'Error while parsing description ({self.scdp})')
+            self._logger.exception(f'Error while parsing description ({self.scpd})')
 
     async def _get_description(self) -> ET.Element:
         async with aiohttp.ClientSession(loop=self._loop) as session:
-            async with session.get(self.scdp) as response:
+            async with session.get(self.scpd) as response:
                 assert response.status == 200, f'Unable to get description (status {response.status})'
                 data = await response.read()
 
@@ -192,8 +193,8 @@ class Argument:
 class StateVariable:
     def __init__(self, xml: ET.Element, service: SSDPService):
         # Attributes
-        self.send_events = xml.attrib['sendEvents'] == 'yes'
-        self.multicast = xml.attrib['multicast'] == 'yes'
+        self.send_events = xml.attrib.get('sendEvents', 'yes') == 'yes'
+        self.multicast = xml.attrib.get('multicast', 'no') == 'yes'
 
         self.name = xml.find('upnp:name', XML_SERVICE_NS).text
         self.default_value = xml_text(xml.find('upnp:defaultValue', XML_SERVICE_NS))
@@ -202,10 +203,13 @@ class StateVariable:
         self.type = get_type(xtype.attrib.get('type', xtype.text))
 
         xavl = xml.find('upnp:allowedValueList', XML_SERVICE_NS)
-        self.allowed_values = [
-            self.type.to_python(child.text)
-            for child in xavl or None
-        ]
+        if xavl is not None:
+            self.allowed_values = [
+                self.type.to_python(child.text)
+                for child in xavl or None
+            ]
+        else:
+            self.allowed_values = None
 
         xavr = xml.find('upnp:allowedValueRange', XML_SERVICE_NS)
         self.allowed_range = None if xavr is None else ValueRange(xavr, self.type)

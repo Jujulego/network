@@ -36,6 +36,7 @@ class SSDPRemoteDevice(RemoteDevice):
         self.location = msg.location
         self.root = False
         self.urns = set()  # type: Set[URN]
+        self.type = None   # type: Optional[URN]
         self.uuid = msg.usn.uuid
 
         self.metadata = {}  # type: Dict[str,str]
@@ -92,13 +93,17 @@ class SSDPRemoteDevice(RemoteDevice):
                     if tag == 'friendlyName':
                         self.friendly_name = child.text.strip()
 
+                    elif tag == 'deviceType':
+                        self.type = URN(child.text.strip())
+
                     elif tag == 'serviceList':
                         for xs in child:
-                            service = SSDPService(xs, loop=self._loop)
+                            service = SSDPService(xs, self.location, loop=self._loop)
                             self._services[service.id] = service
 
                     elif tag in ('iconList', 'deviceList'):
                         pass
+
                     elif child.text is not None:
                         self.metadata[tag] = child.text.strip()
 
