@@ -5,7 +5,7 @@ import logging
 from enum import Enum, auto
 from network.device import RemoteDevice
 from network.utils.xml import strip_ns
-from typing import Optional, Dict, Set
+from typing import Optional, Dict, List, Set
 from xml.etree import ElementTree as ET
 
 from .constants import XML_DEVICE_NS
@@ -157,3 +157,7 @@ class SSDPRemoteDevice(RemoteDevice):
     @property
     def name(self) -> str:
         return self.friendly_name or self.uuid
+
+    @property
+    def services(self) -> List[SSDPService]:
+        return list(self._services.values())

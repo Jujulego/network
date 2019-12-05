@@ -5,7 +5,7 @@ import logging
 from enum import Enum, auto
 from network.soap import SOAPCapability
 from network.utils.machine import StateMachine
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 from urllib.parse import urljoin
 from xml.etree import ElementTree as ET
 
@@ -137,6 +137,15 @@ class SSDPService(StateMachine, SOAPCapability):
     def state_variable(self, name: str) -> 'StateVariable':
         return self._state_vars[name]
 
+    # Properties
+    @property
+    def actions(self) -> List['Action']:
+        return list(self._actions.values())
+
+    @property
+    def state_variables(self) -> List['StateVariable']:
+        return list(self._state_vars.values())
+
 
 class Action:
     def __init__(self, xml: ET.Element, service: SSDPService):
@@ -168,6 +177,25 @@ class Action:
 
         # call
         return await self._service.call(self, kwargs)
+
+    # Properties
+    @property
+    def arguments(self) -> List['Argument']:
+        return list(self._arguments.values())
+
+    @property
+    def parameters(self) -> List['Argument']:
+        return list(filter(
+            lambda arg: arg.direction == 'in',
+            self._arguments.values()
+        ))
+
+    @property
+    def results(self) -> List['Argument']:
+        return list(filter(
+            lambda arg: arg.direction == 'out',
+            self._arguments.values()
+        ))
 
 
 class Argument:
