@@ -22,6 +22,7 @@ class SOAPResponse:
         }
 
     def _parse_data(self, data: str):
+        print(data)
         xml_ns = self.xml_ns()
         xml = ET.fromstring(data)
 
@@ -42,10 +43,10 @@ class SOAPResponse:
 
         # error data
         detail = fault.find('detail')
-        err = detail.find('UPnPError')
+        err = detail.find('control:UPnPError', xml_ns)
 
-        self.error_code = int(err.find('errorCode').text)
-        self.error_description = err.find('errorDescription').text
+        self.error_code = int(err.find('control:errorCode', xml_ns).text)
+        self.error_description = err.find('control:errorDescription', xml_ns).text
 
     def _parse_response(self, xml: ET.Element):
         xml_ns = self.xml_ns()
