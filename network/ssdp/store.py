@@ -1,10 +1,12 @@
 import aiohttp
 import asyncio
+import itertools
 import logging
 import pyee
 
 from network.typing import Address
 from typing import Dict, Iterable, Optional, Union
+from weakref import WeakValueDictionary
 from xml.etree import ElementTree as ET
 
 from .constants import XML_DEVICE_NS
@@ -35,19 +37,33 @@ class SSDPStore(pyee.AsyncIOEventEmitter):
 
         # - stores
         self._devices = {}  # type: Dict[str, SSDPRemoteDevice]
+        self._sub_devices = WeakValueDictionary()  # type: WeakValueDictionary[str, SSDPRemoteDevice]
         self._tasks = {}    # type: Dict[str, asyncio.Task]
 
     def __repr__(self):
         return f'<SSDPStore: {len(self)} devices>'
 
     def __iter__(self):
-        return iter(self._devices.values())
+        return itertools.chain(
+            self._devices.values(),
+            self._sub_devices.values()
+        )
 
     def __len__(self):
-        return len(self._devices)
+        return len(self._devices) + len(self._sub_devices)
+
+    def __contains__(self, uuid) -> bool:
+        return uuid in self._devices or uuid in self._sub_devices
 
     def __getitem__(self, uuid: str) -> SSDPRemoteDevice:
-        return self._devices[uuid]
+        try:
+            if uuid in self._devices:
+                return self._devices[uuid]
+
+            return self._sub_devices[uuid]
+
+        except KeyError:
+            raise KeyError(uuid)
 
     # Methods
     async def _get_description(self, msg: SSDPMessage, addr: Address):
@@ -73,7 +89,9 @@ class SSDPStore(pyee.AsyncIOEventEmitter):
                 self._devices[device.uuid] = device
 
                 self.emit('new', device)
-                logger.info(f'New root device on {addr[0]}: {device.uuid}')
+                logger.info(f'New root device on {device.address}: {device.uuid}')
+
+                self._add_sub_devices(device)
 
         except aiohttp.ClientError as err:
             logger.error(f'Error while getting description: {err}')
@@ -84,12 +102,21 @@ class SSDPStore(pyee.AsyncIOEventEmitter):
         except Exception:
             logger.exception(f'Error while parsing description ({msg.location})')
 
+    def _add_sub_devices(self, device: SSDPRemoteDevice):
+        for dev in device.children:
+            self._sub_devices[dev.uuid] = dev
+
+            self.emit('new', dev)
+            logger.info(f'New device on {dev.address}: {dev.uuid}')
+
+            self._add_sub_devices(dev)
+
     def connect_to(self, srv: SSDPServer):
         srv.on('notify', self.on_adv_message)
         srv.on('response', self.on_adv_message)
 
     def get(self, uuid: str) -> Optional[SSDPRemoteDevice]:
-        return self._devices.get(uuid)
+        return self._devices.get(uuid) or self._sub_devices.get(uuid)
 
     def ip_filter(self, ip: str) -> Iterable[SSDPRemoteDevice]:
         return [d for d in self if d.address == ip]
@@ -101,7 +128,7 @@ class SSDPStore(pyee.AsyncIOEventEmitter):
         return [d for d in self if urn in d.urns]
 
     def roots(self) -> Iterable[SSDPRemoteDevice]:
-        return [d for d in self if d.root]
+        return list(self._devices.values())
 
     def _show(self, dev: SSDPRemoteDevice, lvl: int) -> int:
         count = len(dev.children)
@@ -113,9 +140,9 @@ class SSDPStore(pyee.AsyncIOEventEmitter):
         return count
 
     def show(self):
-        count = len(self)
+        count = len(self._devices)
 
-        for dev in self:
+        for dev in self._devices.values():
             print(f'- {repr(dev)}')
             count += self._show(dev, 1)
 
@@ -125,10 +152,10 @@ class SSDPStore(pyee.AsyncIOEventEmitter):
     def on_adv_message(self, msg: SSDPMessage, addr: Address):
         uuid = msg.usn.uuid
 
-        if uuid not in self._devices:
+        if uuid not in self:
             if msg.location not in self._tasks or self._tasks[msg.location].done():
                 task = self._loop.create_task(self._get_description(msg, addr))
                 self._tasks[msg.location] = task
 
         else:
-            self._devices[uuid].on_message(msg)
+            self[uuid].on_message(msg)
