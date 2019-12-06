@@ -36,9 +36,9 @@ class SSDPStore(pyee.AsyncIOEventEmitter):
         super().__init__(loop=loop)
 
         # - stores
+        self._tasks = {}    # type: Dict[str, asyncio.Task]
         self._devices = {}  # type: Dict[str, SSDPRemoteDevice]
         self._sub_devices = WeakValueDictionary()  # type: WeakValueDictionary[str, SSDPRemoteDevice]
-        self._tasks = {}    # type: Dict[str, asyncio.Task]
 
     def __repr__(self):
         return f'<SSDPStore: {len(self)} devices>'
@@ -140,13 +140,11 @@ class SSDPStore(pyee.AsyncIOEventEmitter):
         return count
 
     def show(self):
-        count = len(self._devices)
-
         for dev in self._devices.values():
             print(f'- {repr(dev)}')
-            count += self._show(dev, 1)
+            dev.show_children(1)
 
-        print(f'{count} device(s)')
+        print(f'{len(self)} device(s)')
 
     # Callbacks
     def on_adv_message(self, msg: SSDPMessage, addr: Address):

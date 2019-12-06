@@ -81,6 +81,8 @@ class SSDPRemoteDevice(RemoteDevice):
                     service = SSDPService(xs, self.location, loop=self._loop)
                     self._services[service.id] = service
 
+                    service.up()
+
             elif tag == 'deviceList':
                 for xd in child:
                     device = SSDPRemoteDevice(msg, xd, self.address, parent=self, loop=self._loop)
@@ -92,6 +94,32 @@ class SSDPRemoteDevice(RemoteDevice):
             elif child.text is not None:
                 self.metadata[tag] = child.text.strip()
 
+    def show_children(self, lvl: int = 0):
+        for dev in self.children:
+            print('  ' * lvl + f'- {repr(dev)}')
+            dev.show_children(lvl + 1)
+
+    def show(self):
+        print(f'Device {self.uuid}: {self.friendly_name}')
+        for n, v in self.metadata.items():
+            print(f'- {n}\t: {v}')
+
+        print()
+        print('Services:')
+        for s in self.services:
+            print(f'- {repr(s)}')
+
+        print()
+        print('Children:')
+        self.show_children()
+
+    def child(self, uuid: str) -> 'SSDPRemoteDevice':
+        return self._children[uuid]
+
+    def service(self, sid: str) -> SSDPService:
+        return self._services[sid]
+
+    # Callbacks
     def on_message(self, msg: SSDPMessage):
         if msg.is_response:
             if msg.st is not None:
@@ -108,12 +136,6 @@ class SSDPRemoteDevice(RemoteDevice):
 
             elif msg.nts == 'ssdp:byebye':
                 self._inactivate()
-
-    def child(self, uuid: str) -> 'SSDPRemoteDevice':
-        return self._children[uuid]
-
-    def service(self, sid: str) -> SSDPService:
-        return self._services[sid]
 
     # Property
     @property
