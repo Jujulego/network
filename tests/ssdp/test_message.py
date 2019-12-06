@@ -39,7 +39,7 @@ def notify_byebye_msg(nt: str) -> str:
 def msearch_msg(st: str) -> str:
     return f'MSEARCH * HTTP/1.1\r\n' \
            f'HOST: 239.255.255.250:1900\r\n' \
-           f'MAN: ssdp:discover\r\n' \
+           f'MAN: "ssdp:discover"\r\n' \
            f'MX: 5\r\n' \
            f'ST: {st}\r\n' \
            f'USER-AGENT: OS/version UPnP/2.0 product/version\r\n' \
@@ -142,7 +142,7 @@ def test_msearch_parse():
     assert msg.nt is None
     assert msg.nts is None
     assert msg.usn is None
-    assert msg.man == 'ssdp:discover'
+    assert msg.man == '"ssdp:discover"'
     assert msg.mx == 5
     assert isinstance(msg.st, str)
     assert msg.st == 'ssdp:all'

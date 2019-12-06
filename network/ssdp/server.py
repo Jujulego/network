@@ -3,10 +3,10 @@ import socket
 
 from network.typing import Address
 from pyee import AsyncIOEventEmitter
-from typing import Optional
+from typing import Optional, Type
 
 from .message import SSDPMessage
-from .protocol import SSDPProtocol
+from .protocol import SSDPProtocol, SSDPSearchProtocol
 
 REUSE_PORT = None
 if hasattr(socket, 'SO_REUSEPORT'):
@@ -39,37 +39,51 @@ class SSDPServer(AsyncIOEventEmitter):
         elif msg.method == 'M-SEARCH':
             self.emit('search', msg, addr)
 
-    def _protocol_factory(self):
-        return SSDPProtocol(
+    def _protocol_factory(self, protocol: Type[SSDPProtocol] = SSDPProtocol):
+        return lambda: protocol(
             self.multicast, ttl=self.ttl,
-            on_message=self._on_message
+            loop=self._loop
         )
 
     async def start(self):
         if not self.__started:
             self._transport, self._protocol = await self._loop.create_datagram_endpoint(
-                self._protocol_factory,
+                self._protocol_factory(),
                 local_addr=('0.0.0.0', self.multicast[1]),
-                reuse_address=True, reuse_port=REUSE_PORT
+                reuse_address=True, reuse_port=REUSE_PORT,
+                allow_broadcast=True
             )
 
+            self._protocol.on('recv', self._on_message)
             self.__started = True
 
     def send(self, msg: SSDPMessage):
         assert self.__started
         self._protocol.send_message(msg)
 
-    def search(self, st: str, mx: int = 5):
+    async def search(self, st: str, mx: int = 5) -> SSDPSearchProtocol:
+        # Create socket
+        _, protocol = await self._loop.create_datagram_endpoint(
+            self._protocol_factory(SSDPSearchProtocol),
+            family=socket.AF_INET,
+            allow_broadcast=True
+        )
+
+        protocol.on('recv', self._on_message)
+
+        # Send message
         msg = SSDPMessage(
             method='M-SEARCH',
             headers={
-                'MAN': 'ssdp:discover',
-                'ST': st,
-                'MX': mx
+                'HOST': '239.255.255.250:1900',
+                'MAN': '"ssdp:discover"',
+                'MX': mx,
+                'ST': st
             }
         )
 
-        self.send(msg)
+        protocol.send_message(msg)
+        return protocol
 
     def stop(self):
         if self.__started:

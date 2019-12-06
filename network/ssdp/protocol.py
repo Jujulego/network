@@ -1,36 +1,35 @@
 import asyncio
 import logging
+import pyee
 import socket
 import struct
 
 from network.typing import Address
-from typing import Callable, Optional, Union, Text
+from typing import Optional, Union, Text
 
 from .message import SSDPMessage
 
 # Logging
 logger = logging.getLogger("ssdp")
 
-# Typings
-MessageCallback = Callable[[SSDPMessage, Address], None]
 
-
-# Class
-class SSDPProtocol(asyncio.DatagramProtocol):
+# Classes
+class SSDPProtocol(asyncio.DatagramProtocol, pyee.AsyncIOEventEmitter):
     """
     Receive SSDP messages from the given multicast
     """
 
-    def __init__(self, multicast: Address, *, ttl: int = 4, on_message: Optional[MessageCallback] = None):
-        self.transport = None  # type: Optional[asyncio.transports.DatagramTransport]
-        self.on_message = on_message
+    def __init__(self, multicast: Address, *, ttl: int = 4, loop: Optional[asyncio.AbstractEventLoop] = None):
+        super().__init__(loop=loop or asyncio.get_event_loop())
 
-        # parameters
+        # Attributes
+        self.transport = None  # type: Optional[asyncio.transports.DatagramTransport]
+
         self.multicast = multicast
         self.ttl = ttl
 
     # Methods
-    def connection_made(self, transport: asyncio.transports.BaseTransport) -> None:
+    def connection_made(self, transport: asyncio.transports.DatagramTransport) -> None:
         self.transport = transport
         sock = transport.get_extra_info('socket')
 
@@ -43,19 +42,19 @@ class SSDPProtocol(asyncio.DatagramProtocol):
 
         # logging
         logger.info(f'Connected to {self.multicast[0]}:{self.multicast[1]}')
+        self.emit('connected')
 
     def connection_lost(self, exc: Optional[Exception]) -> None:
         self.transport = None
 
         # logging
         logger.info(f'Disconnected from {self.multicast[0]}:{self.multicast[1]}')
+        self.emit('disconnected')
 
     def datagram_received(self, data: Union[bytes, Text], addr: Address) -> None:
         # logging
         logger.debug(f'recv {addr[0]}:{addr[1]} => {data}')
-
-        if self.on_message is not None:
-            self.on_message(SSDPMessage(message=data.decode('utf-8')), addr)
+        self.emit('recv', SSDPMessage(message=data.decode('utf-8')), addr)
 
     def send_message(self, msg: SSDPMessage):
         assert self.transport is not None
@@ -72,3 +71,21 @@ class SSDPProtocol(asyncio.DatagramProtocol):
         if self.transport is not None:
             self.transport.close()
             self.transport = None
+
+
+class SSDPSearchProtocol(SSDPProtocol):
+    """
+    Receive SSDP messages from the given multicast
+    """
+
+    # Methods
+    def connection_made(self, transport: asyncio.transports.DatagramTransport) -> None:
+        self.transport = transport
+        sock = transport.get_extra_info('socket')
+
+        # setup ttl
+        sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, self.ttl)
+
+        # logging
+        logger.info(f'Connected to {self.multicast[0]}:{self.multicast[1]}')
+        self.emit('connected')
