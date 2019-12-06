@@ -153,9 +153,11 @@ class Action:
         self.name = xml.find('upnp:name', XML_SERVICE_NS).text
         self._arguments = {}  # type: Dict[str, Argument]
 
-        for child in xml.find('upnp:argumentList', XML_SERVICE_NS):
-            arg = Argument(child, service)
-            self._arguments[arg.name] = arg
+        xal = xml.find('upnp:argumentList', XML_SERVICE_NS)
+        if xal is not None:
+            for child in xal:
+                arg = Argument(child, service)
+                self._arguments[arg.name] = arg
 
         # - internals
         self._service = service
