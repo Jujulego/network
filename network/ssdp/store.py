@@ -1,10 +1,13 @@
+import aiohttp
 import asyncio
 import logging
 import pyee
 
 from network.typing import Address
 from typing import Dict, Iterable, Optional, Union
+from xml.etree import ElementTree as ET
 
+from .constants import XML_DEVICE_NS
 from .device import SSDPRemoteDevice
 from .message import SSDPMessage
 from .server import SSDPServer
@@ -32,6 +35,7 @@ class SSDPStore(pyee.AsyncIOEventEmitter):
 
         # - stores
         self._devices = {}  # type: Dict[str, SSDPRemoteDevice]
+        self._tasks = {}    # type: Dict[str, asyncio.Task]
 
     def __repr__(self):
         return f'<SSDPStore: {len(self)} devices>'
@@ -46,6 +50,40 @@ class SSDPStore(pyee.AsyncIOEventEmitter):
         return self._devices[uuid]
 
     # Methods
+    async def _get_description(self, msg: SSDPMessage, addr: Address):
+        # noinspection PyBroadException
+        try:
+            # Get xml description
+            logger.info(f'Getting description of {msg.usn.uuid}')
+
+            async with aiohttp.ClientSession(loop=self._loop) as session:
+                async with session.get(msg.location) as response:
+                    assert response.status == 200, f'Unable to get description (status {response.status})'
+                    data = await response.read()
+
+                    xml = ET.fromstring(data)
+
+            # Parse it !
+            device = xml.find('upnp:device', XML_DEVICE_NS)
+
+            if device is None:
+                logger.warning(f'Invalid description: no device element ({msg.location})')
+            else:
+                device = SSDPRemoteDevice(msg, device, addr[0], loop=self._loop)
+                self._devices[device.uuid] = device
+
+                self.emit('new', device)
+                logger.info(f'New root device on {addr[0]}: {device.uuid}')
+
+        except aiohttp.ClientError as err:
+            logger.error(f'Error while getting description: {err}')
+
+        except AssertionError as err:
+            logger.error(f'Error while getting description: {err}')
+
+        except Exception:
+            logger.exception(f'Error while parsing description ({msg.location})')
+
     def connect_to(self, srv: SSDPServer):
         srv.on('notify', self.on_adv_message)
         srv.on('response', self.on_adv_message)
@@ -65,21 +103,32 @@ class SSDPStore(pyee.AsyncIOEventEmitter):
     def roots(self) -> Iterable[SSDPRemoteDevice]:
         return [d for d in self if d.root]
 
+    def _show(self, dev: SSDPRemoteDevice, lvl: int) -> int:
+        count = len(dev.children)
+
+        for d in dev.children:
+            print('  ' * lvl + f'- {repr(d)}')
+            count += self._show(d, lvl + 1)
+
+        return count
+
     def show(self):
+        count = len(self)
+
         for dev in self:
             print(f'- {repr(dev)}')
+            count += self._show(dev, 1)
 
-        print(f'{len(self)} device(s)')
+        print(f'{count} device(s)')
 
     # Callbacks
     def on_adv_message(self, msg: SSDPMessage, addr: Address):
         uuid = msg.usn.uuid
 
         if uuid not in self._devices:
-            device = SSDPRemoteDevice(msg, addr[0], loop=self._loop)
-            self._devices[uuid] = device
+            if msg.location not in self._tasks or self._tasks[msg.location].done():
+                task = self._loop.create_task(self._get_description(msg, addr))
+                self._tasks[msg.location] = task
 
-            self.emit('new', device)
-            logger.info(f'New device on {addr[0]}: {uuid}')
-
-        self._devices[uuid].on_message(msg)
+        else:
+            self._devices[uuid].on_message(msg)
