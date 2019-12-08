@@ -3,6 +3,7 @@ import asyncio
 from typing import Optional, TypeVar
 
 from .utils.machine import StateMachine
+from .utils.style import style as _s
 
 # Types
 S = TypeVar('S')
@@ -15,7 +16,7 @@ class RemoteDevice(StateMachine[S]):
         self.address = addr
 
     def __repr__(self):
-        return f'<{self.__class__.__name__}: {self.name} ({self.state})>'
+        return _s.blue(f'<{self.__class__.__name__}: {_s.reset}{self.name}{_s.blue} ({self.state})>')
 
     # Properties
     @property

@@ -22,7 +22,6 @@ class SOAPResponse:
         }
 
     def _parse_data(self, data: str):
-        print(data)
         xml_ns = self.xml_ns()
         xml = ET.fromstring(data)
 

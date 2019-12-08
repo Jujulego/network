@@ -6,6 +6,7 @@ import sys
 from aioconsole import interact, get_standard_streams
 from aioconsole.server import parse_server
 from network.ssdp import SSDPMessage, SSDPServer, SSDPStore, SSDPRemoteDevice
+from network.utils.style import style as _s
 from typing import Optional
 
 
@@ -37,14 +38,14 @@ class SSDP:
     async def init(self):
         await self.ssdp.start()
 
-    async def on_new_device(self, device: SSDPRemoteDevice):
-        print(f'New device : {repr(device)}')
+    def on_new_device(self, device: SSDPRemoteDevice):
+        print(f'{_s.bold}New device:{_s.reset} {repr(device)}')
 
-    async def on_up_device(self, device: SSDPRemoteDevice, msg: SSDPMessage):
-        print(f'Up device : {repr(device)} ({"response" if msg.is_response else "notify"})')
+    def on_up_device(self, device: SSDPRemoteDevice, msg: SSDPMessage):
+        print(f'{_s.bold}Up device:{_s.reset} {repr(device)} ({"response" if msg.is_response else "notify"})')
 
-    async def on_down_device(self, device: SSDPRemoteDevice):
-        print(f'Down device : {repr(device)}')
+    def on_down_device(self, device: SSDPRemoteDevice):
+        print(f'{_s.bold}Down device:{_s.reset} {repr(device)}')
 
 
 async def start_cli(streams=None, *, loop=None):
@@ -62,14 +63,18 @@ if __name__ == '__main__':
     # Arguments
     parser = argparse.ArgumentParser()
     parser.add_argument("--no-cli", action="store_true")
+    parser.add_argument("--no-color", action="store_true")
     parser.add_argument("--serve", metavar="[host:]port", type=int)
-    parser.add_argument("--verbose", "-v", action="store_true")
+    parser.add_argument("--verbose", "-v", action="count", default=0)
 
     args = parser.parse_args(sys.argv[1:])
 
-    if args.verbose:
+    if args.no_color:
+        _s.enabled = False
+
+    if args.verbose >= 2:
         logging.basicConfig(level=logging.DEBUG)
-    else:
+    elif args.verbose >= 1:
         logging.basicConfig(level=logging.INFO)
 
     # Start !

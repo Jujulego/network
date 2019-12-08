@@ -2,6 +2,7 @@ import asyncio
 import logging
 
 from network.device import RemoteDevice
+from network.utils.style import style as _s
 from network.utils.xml import strip_ns
 from typing import Optional, Dict, List, Set
 from xml.etree import ElementTree as ET
@@ -116,16 +117,18 @@ class SSDPRemoteDevice(RemoteDevice):
     def show(self):
         print(f'Device {self.uuid}: {self.friendly_name}')
         for n, v in self.metadata.items():
-            print(f'- {n}\t: {v}')
+            print(f'- {n}:\t{v}')
 
-        print()
-        print('Services:')
-        for s in self.services:
-            print(f'- {repr(s)}')
+        if len(self.services) > 0:
+            print()
+            print('Services:')
+            for s in self.services:
+                print(f'- {repr(s)}')
 
-        print()
-        print('Children:')
-        self.show_children()
+        if len(self.children) > 0:
+            print()
+            print('Children:')
+            self.show_children()
 
     def child(self, uuid: str) -> 'SSDPRemoteDevice':
         return self._children[uuid]

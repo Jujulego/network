@@ -4,6 +4,7 @@ import logging
 
 from network.soap import SOAPCapability
 from network.utils.machine import StateMachine
+from network.utils.style import style as _s
 from typing import Any, Dict, List, Optional, Union
 from urllib.parse import urljoin
 from xml.etree import ElementTree as ET
@@ -11,6 +12,9 @@ from xml.etree import ElementTree as ET
 from .constants import XML_DEVICE_NS, XML_SERVICE_NS
 from .urn import URN
 from .types import SSDPType, get_type
+
+# Constants
+_s_type = _s.bold + _s.purple
 
 
 # Utils
@@ -39,7 +43,7 @@ class SSDPService(StateMachine, SOAPCapability):
         self.__up_task = None  # type: Optional[asyncio.Task]
 
     def __repr__(self):
-        return f'<SSDPService: {self.id}>'
+        return _s.blue(f'<SSDPService: {_s.reset}{self.id}{_s.blue}>')
 
     def __hash__(self):
         return hash(self.id)
@@ -130,6 +134,17 @@ class SSDPService(StateMachine, SOAPCapability):
     def state_variable(self, name: str) -> 'StateVariable':
         return self._state_vars[name]
 
+    def show(self):
+        print(f'Service {self.type}')
+        print(f'Actions:')
+        for action in self.actions:
+            print(f'- {action}')
+
+        print()
+        print('State:')
+        for var in self.state_variables:
+            print(f'- {_s_type(var.type)} {var.name}')
+
     # Properties
     @property
     def actions(self) -> List['Action']:
@@ -156,10 +171,16 @@ class Action:
         self._service = service
 
     def __repr__(self):
-        return f'<Action: {self.name}>'
+        return _s.blue(f'<Action: {_s.reset}{self.name}{_s.blue}>')
 
-    def __call__(self, **kwargs):
-        return self.call(**kwargs)
+    def __str__(self):
+        parameters = ', '.join(f'{_s_type(arg.type)} {arg.name}' for arg in self.parameters)
+        results = ', '.join(f'{_s_type(arg.type)} {arg.name}' for arg in self.parameters)
+
+        return f'{_s.bold(self.name)}({parameters}) -> {results}'
+
+    async def __call__(self, **kwargs):
+        return await self.call(**kwargs)
 
     # Methods
     def argument(self, name: str) -> 'Argument':
@@ -205,12 +226,21 @@ class Argument:
         self._state_variable = xml.find('upnp:relatedStateVariable', XML_SERVICE_NS).text
 
     def __repr__(self):
-        return f'<Argument: {self.name}>'
+        return _s.blue(
+            f'<Argument: {_s.green}{self.direction} {_s_type}{self.type} {_s.reset}{self.name}{_s.blue}>'
+        )
+
+    def __str__(self):
+        return self.name
 
     # Properties
     @property
-    def state_variable(self):
+    def state_variable(self) -> 'StateVariable':
         return self._service.state_variable(self._state_variable)
+
+    @property
+    def type(self) -> SSDPType:
+        return self.state_variable.type
 
 
 class StateVariable:
@@ -241,7 +271,9 @@ class StateVariable:
         self._service = service
 
     def __repr__(self):
-        return f'<StateVariable: {self.name}>'
+        return _s.blue(
+            f'<StateVariable: {_s_type}{self.type} {_s.reset}{self.name}{_s.blue}>'
+        )
 
 
 class ValueRange:
@@ -251,3 +283,13 @@ class ValueRange:
 
         step = xml_text(xml.find('upnp:step', XML_SERVICE_NS))
         self.step = stype.from_python(step)
+
+    def __repr__(self):
+        if self.step is not None:
+            return _s.blue(
+                f'<ValueRange: {_s.reset}{self.minimum}:{self.maximum}:{self.step}{_s.blue}>'
+            )
+
+        return _s.blue(
+            f'<ValueRange: {_s.reset}{self.minimum}:{self.maximum}{_s.blue}>'
+        )
