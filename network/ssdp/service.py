@@ -1,4 +1,3 @@
-import aiohttp
 import asyncio
 import logging
 
@@ -10,8 +9,9 @@ from urllib.parse import urljoin
 from xml.etree import ElementTree as ET
 
 from .constants import XML_DEVICE_NS, XML_SERVICE_NS
-from .urn import URN
 from .types import SSDPType, get_type
+from .urn import URN
+from .xml import get_service_id
 
 # Constants
 _s_type = _s.bold + _s.purple
@@ -24,23 +24,25 @@ def xml_text(e: Optional[ET.Element]) -> Optional[str]:
 
 # Classes
 class SSDPService(StateMachine, SOAPCapability):
-    def __init__(self, xml: ET.Element, base_url: str, *, loop: Optional[asyncio.AbstractEventLoop] = None):
+    def __init__(self, xmld: ET.Element, xmls: ET.Element, base_url: str, *,
+                 loop: Optional[asyncio.AbstractEventLoop] = None):
         StateMachine.__init__(self, 'down', loop=loop)
         SOAPCapability.__init__(self, loop=loop)
 
-        # Parse xml
-        self.id = xml.find('upnp:serviceId', XML_DEVICE_NS).text
-        self.type = URN(xml.find('upnp:serviceType', XML_DEVICE_NS).text)
-        self.scpd = urljoin(base_url, xml.find('upnp:SCPDURL', XML_DEVICE_NS).text)
-        self.control = urljoin(base_url, xml.find('upnp:controlURL', XML_DEVICE_NS).text)
-        self.event_sub = urljoin(base_url, xml.find('upnp:eventSubURL', XML_DEVICE_NS).text)
+        # Attributes
+        self.id = get_service_id(xmld, base_url)
 
         # - internals
         self._actions = {}  # type: Dict[str, Action]
-        self._state_vars = {}  # type: Dict[str, StateVariable]
+        self._state = {}    # type: Dict[str, StateVariable]
         self._logger = logging.getLogger(f'ssdp:service:{self.id}')
 
-        self.__up_task = None  # type: Optional[asyncio.Task]
+        # Parse xml
+        self._parse_xml_device(xmld, base_url)
+        self._parse_xml_service(xmls)
+
+        # State
+        self.state = 'up'
 
     def __repr__(self):
         return _s.blue(f'<SSDPService: {_s.reset}{self.id}{_s.blue}>')
@@ -54,7 +56,28 @@ class SSDPService(StateMachine, SOAPCapability):
 
         return False
 
-    # Methodes
+    # Methods
+    def _parse_xml_device(self, xml: ET.Element, base_url: str):
+        # Metadata
+        self.id = xml.find('upnp:serviceId', XML_DEVICE_NS).text
+        self.type = URN(xml.find('upnp:serviceType', XML_DEVICE_NS).text)
+
+        # Urls
+        self.scpd = urljoin(base_url, xml.find('upnp:SCPDURL', XML_DEVICE_NS).text)
+        self.control = urljoin(base_url, xml.find('upnp:controlURL', XML_DEVICE_NS).text)
+        self.event_sub = urljoin(base_url, xml.find('upnp:eventSubURL', XML_DEVICE_NS).text)
+
+    def _parse_xml_service(self, xml: ET.Element):
+        # Gather actions
+        for child in xml.find('upnp:actionList', XML_SERVICE_NS):
+            action = Action(child, self)
+            self._actions[action.name] = action
+
+        # Gather state
+        for child in xml.find('upnp:serviceStateTable', XML_SERVICE_NS):
+            state_var = StateVariable(child, self)
+            self._state[state_var.name] = state_var
+
     async def call(self, action: Union[str, 'Action'], args: Dict[str, Any]) -> Dict[str, Any]:
         if isinstance(action, str):
             action = self.action(action)
@@ -78,61 +101,23 @@ class SSDPService(StateMachine, SOAPCapability):
 
         return py_resp
 
-    def up(self):
-        if self.state == 'down':
-            if self.__up_task is None or self.__up_task.done():
-                self.__up_task = self._loop.create_task(self._up())
+    def update(self, xmld: ET.Element, xmls: ET.Element, base_url: str):
+        # Resets
+        self._actions = {}
+        self._state = {}
 
-    async def _up(self):
-        self._logger.info('Getting description')
-
-        try:
-            xml = await self._get_description()
-
-            # Gather actions
-            self._actions = {}
-            for child in xml.find('upnp:actionList', XML_SERVICE_NS):
-                action = Action(child, self)
-
-                self._actions[action.name] = action
-
-            # Gather state
-            self._state_vars = {}
-            for child in xml.find('upnp:serviceStateTable', XML_SERVICE_NS):
-                state_var = StateVariable(child, self)
-
-                self._state_vars[state_var.name] = state_var
-
-            # Service is ready to be used
-            self.state = 'up'
-            self._logger.info('Ready !')
-
-        except aiohttp.ClientError as err:
-            self._logger.error(f'Error while getting description: {err}')
-
-        except Exception:
-            self._logger.exception(f'Error while parsing description ({self.scpd})')
-
-    async def _get_description(self) -> ET.Element:
-        async with aiohttp.ClientSession(loop=self._loop) as session:
-            async with session.get(self.scpd) as response:
-                assert response.status == 200, f'Unable to get description (status {response.status})'
-                data = await response.read()
-
-                return ET.fromstring(data.decode('utf-8'))
+        # Parse xml
+        self._parse_xml_device(xmld, base_url)
+        self._parse_xml_service(xmls)
 
     def down(self):
-        if self.state == 'up':
-            self.state = 'down'
-
-            if self.__up_task is not None:
-                self.__up_task.cancel()
+        self.state = 'down'
 
     def action(self, name: str) -> 'Action':
         return self._actions[name]
 
     def state_variable(self, name: str) -> 'StateVariable':
-        return self._state_vars[name]
+        return self._state[name]
 
     def show(self):
         print(f'Service {self.type}')
@@ -152,7 +137,7 @@ class SSDPService(StateMachine, SOAPCapability):
 
     @property
     def state_variables(self) -> List['StateVariable']:
-        return list(self._state_vars.values())
+        return list(self._state.values())
 
 
 class Action:

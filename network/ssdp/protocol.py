@@ -53,7 +53,7 @@ class SSDPProtocol(asyncio.DatagramProtocol, pyee.AsyncIOEventEmitter):
 
     def datagram_received(self, data: Union[bytes, Text], addr: Address) -> None:
         # logging
-        logger.debug(f'recv {addr[0]}:{addr[1]} => {data}')
+        logger.debug(f'{addr[0]}:{addr[1]} => {data}')
         self.emit('recv', SSDPMessage(message=data.decode('utf-8')), addr)
 
     def send_message(self, msg: SSDPMessage):
@@ -65,7 +65,7 @@ class SSDPProtocol(asyncio.DatagramProtocol, pyee.AsyncIOEventEmitter):
             self.transport.sendto(data, self.multicast)
 
         # logging
-        logger.debug(f'send {data}')
+        logger.debug(f'{data}')
 
     def close(self):
         if self.transport is not None:

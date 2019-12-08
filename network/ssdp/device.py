@@ -9,7 +9,7 @@ from xml.etree import ElementTree as ET
 from .message import SSDPMessage
 from .service import SSDPService
 from .urn import URN
-from .xml import get_device_uuid
+from .xml import log_xml_errors, get_device_uuid, get_service_xml, get_service_id
 
 
 # Utils
@@ -24,8 +24,9 @@ class SSDPRemoteDevice(RemoteDevice):
     Represent and interacts with a SSDP remote device
 
     Events:
-    - up (was: str)   : each time the device goes to the state 'up' (was is the previous state)
-    - down (was: str) : each time the device goes to the state 'down' (was is the previous state)
+    - up (was: str)              : each time the device goes to the state 'up' (was is the previous state)
+    - new (service: SSDPService) : each time a new service is added
+    - down (was: str)            : each time the device goes to the state 'down' (was is the previous state)
     """
 
     def __init__(self, msg: SSDPMessage, xml: ET.Element, addr: str, *,
@@ -36,16 +37,19 @@ class SSDPRemoteDevice(RemoteDevice):
         # - metadata
         self.parent = parent
         self.location = msg.location
+        self.uuid = get_device_uuid(xml, self.location)
         self.urns = set()    # type: Set[URN]
         self.metadata = {}   # type: Dict[str,str]
         self._services = {}  # type: Dict[str,SSDPService]
         self._children = {}  # type: Dict[str,SSDPRemoteDevice]
 
-        self._parse_xml(msg, xml)
-
         # - internals
         self._logger = logging.getLogger(self.uuid)
+        self._tasks = {}           # type: Dict[str, asyncio.Task]
         self.__down_handle = None  # type: Optional[asyncio.TimerHandle]
+
+        # Parse xml
+        self._parse_xml(msg, xml)
 
         # Callbacks
         self.on('down', self.on_down)
@@ -81,31 +85,52 @@ class SSDPRemoteDevice(RemoteDevice):
                 self.friendly_name = child.text.strip()
 
             elif tag == 'UDN':
-                self.uuid = child.text.strip()[5:]
-
+                pass
             elif tag == 'serviceList':
-                if not update:
-                    for xs in child:
-                        service = SSDPService(xs, self.location, loop=self._loop)
-                        self._services[service.id] = service
+                for xs in child:
+                    sid = get_service_id(xs, self.location)
 
-                        service.up()
+                    if sid not in self._tasks or self._tasks[sid].done():
+                        task = self._loop.create_task(self._update_service(xs))
+                        self._tasks[sid] = task
 
             elif tag == 'deviceList':
                 for xd in child:
-                    uuid = get_device_uuid(xd, self.location)
-
-                    if update and uuid in self._children:
-                        self._children[uuid].update(msg, xd)
-
-                    else:
-                        self._children[uuid] = SSDPRemoteDevice(msg, xd, self.address, parent=self, loop=self._loop)
+                    self._update_sub_device(xd, msg)
 
             elif tag == 'iconList':
                 pass
 
             elif child.text is not None:
                 self.metadata[tag] = child.text.strip()
+
+    @log_xml_errors
+    async def _update_service(self, xmld: ET.Element):
+        xmls, sid = await get_service_xml(xmld, self.location, loop=self._loop)
+        service = self._services.get(sid)
+
+        if service is not None:
+            self._logger.info(f'Update service: {sid}')
+            service.update(xmld, xmls, self.location)
+
+        else:
+            self._logger.info(f'New service: {sid}')
+            service = SSDPService(xmld, xmls, self.location, loop=self._loop)
+            self._services[sid] = service
+
+            # Emit new event
+            self.emit('new', service)
+
+    def _update_sub_device(self, xml: ET.Element, msg: SSDPMessage):
+        uuid = get_device_uuid(xml, self.location)
+        device = self._children[uuid]
+
+        if device is not None:
+            device.update(msg, xml)
+
+        else:
+            device = SSDPRemoteDevice(msg, xml, self.address, parent=self, loop=self._loop)
+            self._children[uuid] = device
 
     def update(self, msg: SSDPMessage, xml: ET.Element):
         self._logger.info('Updating')
@@ -146,6 +171,9 @@ class SSDPRemoteDevice(RemoteDevice):
 
     # Callbacks
     def on_down(self, was: str):
+        for task in self._tasks.values():
+            task.cancel()
+
         for s in self.services:
             s.down()
 
