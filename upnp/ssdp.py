@@ -38,6 +38,12 @@ class SSDP:
     async def on_new_device(self, device: SSDPRemoteDevice):
         print(f'New device : {repr(device)}')
 
+    async def on_up_device(self, device: SSDPRemoteDevice):
+        print(f'Up device : {repr(device)}')
+
+    async def on_down_device(self, device: SSDPRemoteDevice):
+        print(f'Down device : {repr(device)}')
+
 
 async def start_cli(streams=None, *, loop=None):
     await interact(

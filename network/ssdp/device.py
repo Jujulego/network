@@ -1,7 +1,7 @@
 import asyncio
 import logging
 
-from enum import Enum, auto
+from enum import Enum
 from network.device import RemoteDevice
 from network.utils.xml import strip_ns
 from typing import Optional, Dict, List, Set
@@ -19,15 +19,15 @@ def is_activation_msg(msg: SSDPMessage) -> bool:
 
 # States
 class DState(Enum):
-    ACTIVE = auto()
-    INACTIVE = auto()
+    UP = 'up'
+    DOWN = 'down'
 
 
 # Class
 class SSDPRemoteDevice(RemoteDevice):
     def __init__(self, msg: SSDPMessage, xml: ET.Element, addr: str, *,
                  parent: Optional['SSDPRemoteDevice'] = None, loop: Optional[asyncio.AbstractEventLoop] = None):
-        super().__init__(addr, DState.ACTIVE, loop=loop)
+        super().__init__(addr, DState.UP, loop=loop)
 
         # Attributes
         # - metadata
@@ -42,26 +42,29 @@ class SSDPRemoteDevice(RemoteDevice):
 
         # - internals
         self._logger = logging.getLogger(self.uuid)
-        self.__inactivate_handle = None  # type: Optional[asyncio.TimerHandle]
+        self.__down_handle = None  # type: Optional[asyncio.TimerHandle]
+
+        # Callbacks
+        self.on(DState.DOWN, self.on_down)
 
         # Message
-        self.__inactivate_handle = self._loop.call_later(msg.max_age or 900, self._inactivate)
+        self.__down_handle = self._loop.call_later(msg.max_age or 900, self._down)
 
     # Methods
-    def _activate(self, age: int):
-        self.state = DState.ACTIVE
+    def _up(self, msg: SSDPMessage):
+        self._set_state(DState.UP, msg=msg)
 
-        if self.__inactivate_handle is not None:
-            self.__inactivate_handle.cancel()
+        if self.__down_handle is not None:
+            self.__down_handle.cancel()
 
-        self.__inactivate_handle = self._loop.call_later(age, self._inactivate)
+        self.__down_handle = self._loop.call_later(msg.max_age or 900, self._down)
 
-    def _inactivate(self):
-        self.state = DState.INACTIVE
+    def _down(self):
+        self.state = DState.DOWN
 
-        if self.__inactivate_handle is not None:
-            self.__inactivate_handle.cancel()
-            self.__inactivate_handle = None
+        if self.__down_handle is not None:
+            self.__down_handle.cancel()
+            self.__down_handle = None
 
     def _parse_xml(self, msg: SSDPMessage, xml: ET.Element):
         for child in xml:
@@ -94,6 +97,9 @@ class SSDPRemoteDevice(RemoteDevice):
             elif child.text is not None:
                 self.metadata[tag] = child.text.strip()
 
+    def update(self, xml: ET.Element):
+        pass
+
     def show_children(self, lvl: int = 0):
         for dev in self.children:
             print('  ' * lvl + f'- {repr(dev)}')
@@ -120,22 +126,26 @@ class SSDPRemoteDevice(RemoteDevice):
         return self._services[sid]
 
     # Callbacks
+    def on_down(self, *_):
+        for s in self.services:
+            s.down()
+
     def on_message(self, msg: SSDPMessage):
         if msg.is_response:
             if msg.st is not None:
                 self.urns.add(msg.st)
 
-            self._activate(msg.max_age or 900)
+            self._up(msg)
 
         elif msg.method == 'NOTIFY':
             if msg.usn.urn is not None:
                 self.urns.add(msg.usn.urn)
 
             if msg.nts == 'ssdp:alive':
-                self._activate(msg.max_age or 900)
+                self._up(msg)
 
             elif msg.nts == 'ssdp:byebye':
-                self._inactivate()
+                self._down()
 
     # Property
     @property
