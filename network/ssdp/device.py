@@ -51,8 +51,7 @@ class SSDPRemoteDevice(RemoteDevice):
         if self.__down_handle is not None:
             self.__down_handle.cancel()
 
-        self.__down_handle = self._loop.call_later(10, self._down)
-        # self.__down_handle = self._loop.call_later(msg.max_age or 900, self._down)
+        self.__down_handle = self._loop.call_later(msg.max_age or 900, self._down)
 
     def _down(self):
         self.state = 'down'
@@ -100,6 +99,8 @@ class SSDPRemoteDevice(RemoteDevice):
                 self.metadata[tag] = child.text.strip()
 
     def update(self, msg: SSDPMessage, xml: ET.Element):
+        self._logger.info('Updating')
+
         # Resets
         self.metadata = {}
         self.location = msg.location

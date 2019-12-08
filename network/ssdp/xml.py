@@ -41,7 +41,7 @@ async def get_device_xml(url: str, *, loop: asyncio.AbstractEventLoop) -> (ET.El
     device = xml.find('upnp:device', XML_DEVICE_NS)
     assert device is not None, f'Invalid description: no device element ({url})'
 
-    return device, get_device_uuid(xml, url)
+    return device, get_device_uuid(device, url)
 
 
 # Decorator
