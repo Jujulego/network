@@ -21,7 +21,7 @@ logger = logging.getLogger("ssdp")
 class SSDPStore(pyee.AsyncIOEventEmitter):
     """
     Class SSDPStore:
-    Collect and manages SSDP devices.
+    Collect and manages SSDP remote devices.
 
     Events:
     - new (device: SSDPRemoteDevice) : each time a new device is detected

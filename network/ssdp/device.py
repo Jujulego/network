@@ -2,7 +2,6 @@ import asyncio
 import logging
 
 from network.device import RemoteDevice
-from network.utils.style import style as _s
 from network.utils.xml import strip_ns
 from typing import Optional, Dict, List, Set
 from xml.etree import ElementTree as ET
@@ -20,6 +19,15 @@ def is_activation_msg(msg: SSDPMessage) -> bool:
 
 # Class
 class SSDPRemoteDevice(RemoteDevice):
+    """
+    class SSDPRemoteDevice:
+    Represent and interacts with a SSDP remote device
+
+    Events:
+    - up (was: str)   : each time the device goes to the state 'up' (was is the previous state)
+    - down (was: str) : each time the device goes to the state 'down' (was is the previous state)
+    """
+
     def __init__(self, msg: SSDPMessage, xml: ET.Element, addr: str, *,
                  parent: Optional['SSDPRemoteDevice'] = None, loop: Optional[asyncio.AbstractEventLoop] = None):
         super().__init__(addr, 'down', loop=loop)
@@ -31,7 +39,7 @@ class SSDPRemoteDevice(RemoteDevice):
         self.urns = set()    # type: Set[URN]
         self.metadata = {}   # type: Dict[str,str]
         self._services = {}  # type: Dict[str,SSDPService]
-        self._children = {}    # type: Dict[str,SSDPRemoteDevice]
+        self._children = {}  # type: Dict[str,SSDPRemoteDevice]
 
         self._parse_xml(msg, xml)
 
