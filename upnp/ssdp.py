@@ -5,7 +5,7 @@ import sys
 
 from aioconsole import interact, get_standard_streams
 from aioconsole.server import parse_server
-from network.ssdp import SSDPServer, SSDPStore, SSDPRemoteDevice
+from network.ssdp import SSDPMessage, SSDPServer, SSDPStore, SSDPRemoteDevice
 from typing import Optional
 
 
@@ -30,6 +30,8 @@ class SSDP:
         self.store.connect_to(self.ssdp)
 
         self.store.on('new', self.on_new_device)
+        self.store.on('up', self.on_up_device)
+        self.store.on('down', self.on_down_device)
 
     # Methods
     async def init(self):
@@ -38,8 +40,8 @@ class SSDP:
     async def on_new_device(self, device: SSDPRemoteDevice):
         print(f'New device : {repr(device)}')
 
-    async def on_up_device(self, device: SSDPRemoteDevice):
-        print(f'Up device : {repr(device)}')
+    async def on_up_device(self, device: SSDPRemoteDevice, msg: SSDPMessage):
+        print(f'Up device : {repr(device)} ({"response" if msg.is_response else "notify"})')
 
     async def on_down_device(self, device: SSDPRemoteDevice):
         print(f'Down device : {repr(device)}')

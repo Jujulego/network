@@ -4,7 +4,7 @@ import logging
 import pyee
 
 from network.typing import Address
-from typing import Dict, Iterable, Optional, Union, overload
+from typing import Dict, Iterable, Optional, Union
 from weakref import WeakValueDictionary
 
 from .device import SSDPRemoteDevice
@@ -95,13 +95,13 @@ class SSDPStore(pyee.AsyncIOEventEmitter):
             self._add_sub_devices(dev)
 
     @log_xml_errors
-    async def _update_device(self, location: str):
+    async def _update_device(self, msg: SSDPMessage, location: str):
         xml, uuid = await get_device_xml(location, loop=self._loop)
         device = self.get(uuid)
 
         if device is not None:
             logger.info(f'Update device on {device.address}: {uuid}')
-            device.update(xml)
+            device.update(msg, xml)
 
     def connect_to(self, obj):
         if isinstance(obj, SSDPServer):
@@ -109,8 +109,8 @@ class SSDPStore(pyee.AsyncIOEventEmitter):
             obj.on('response', self.on_adv_message)
 
         elif isinstance(obj, SSDPRemoteDevice):
-            obj.on('up', lambda *, msg: self.on_up(obj, msg))
-            obj.on('down', lambda *_: self.on_down(obj))
+            obj.on('up', lambda msg, was: self.on_up(obj, msg))
+            obj.on('down', lambda was: self.on_down(obj))
 
     def get(self, uuid: str) -> Optional[SSDPRemoteDevice]:
         return self._devices.get(uuid) or self._sub_devices.get(uuid)
@@ -149,7 +149,7 @@ class SSDPStore(pyee.AsyncIOEventEmitter):
 
         if device.root:
             if device.location not in self._tasks or self._tasks[device.location].done():
-                task = self._loop.create_task(self._update_device(device.location))
+                task = self._loop.create_task(self._update_device(msg, device.location))
                 self._tasks[device.location] = task
 
     def on_down(self, device: SSDPRemoteDevice):

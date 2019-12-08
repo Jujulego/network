@@ -2,7 +2,6 @@ import aiohttp
 import asyncio
 import logging
 
-from enum import Enum, auto
 from network.soap import SOAPCapability
 from network.utils.machine import StateMachine
 from typing import Any, Dict, List, Optional, Union
@@ -19,16 +18,10 @@ def xml_text(e: Optional[ET.Element]) -> Optional[str]:
     return None if e is None else e.text
 
 
-# States
-class SState(Enum):
-    UP = auto()
-    DOWN = auto()
-
-
 # Classes
 class SSDPService(StateMachine, SOAPCapability):
     def __init__(self, xml: ET.Element, base_url: str, *, loop: Optional[asyncio.AbstractEventLoop] = None):
-        StateMachine.__init__(self, SState.DOWN, loop=loop)
+        StateMachine.__init__(self, 'down', loop=loop)
         SOAPCapability.__init__(self, loop=loop)
 
         # Parse xml
@@ -82,7 +75,7 @@ class SSDPService(StateMachine, SOAPCapability):
         return py_resp
 
     def up(self):
-        if self.state == SState.DOWN:
+        if self.state == 'down':
             if self.__up_task is None or self.__up_task.done():
                 self.__up_task = self._loop.create_task(self._up())
 
@@ -107,7 +100,7 @@ class SSDPService(StateMachine, SOAPCapability):
                 self._state_vars[state_var.name] = state_var
 
             # Service is ready to be used
-            self.state = SState.UP
+            self.state = 'up'
             self._logger.info('Ready !')
 
         except aiohttp.ClientError as err:
@@ -125,8 +118,8 @@ class SSDPService(StateMachine, SOAPCapability):
                 return ET.fromstring(data.decode('utf-8'))
 
     def down(self):
-        if self.state == SState.UP:
-            self.state = SState.DOWN
+        if self.state == 'up':
+            self.state = 'down'
 
             if self.__up_task is not None:
                 self.__up_task.cancel()

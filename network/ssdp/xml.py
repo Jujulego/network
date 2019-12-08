@@ -11,7 +11,7 @@ from xml.etree import ElementTree as ET
 from .constants import XML_DEVICE_NS
 
 # Logging
-logger = logging.getLogger('xml')
+logger = logging.getLogger('ssdp:xml')
 
 
 # Utils
@@ -27,6 +27,13 @@ async def get_xml(url: str, *, loop: asyncio.AbstractEventLoop) -> ET.Element:
             return ET.fromstring(data)
 
 
+def get_device_uuid(xml: ET.Element, url: str) -> str:
+    udn = xml.find('upnp:UDN', XML_DEVICE_NS)
+    assert udn is not None, f'Invalid description: no UDN element ({url})'
+
+    return udn.text.strip()[5:]
+
+
 @with_event_loop
 async def get_device_xml(url: str, *, loop: asyncio.AbstractEventLoop) -> (ET.Element, str):
     xml = await get_xml(url, loop=loop)
@@ -34,10 +41,7 @@ async def get_device_xml(url: str, *, loop: asyncio.AbstractEventLoop) -> (ET.El
     device = xml.find('upnp:device', XML_DEVICE_NS)
     assert device is not None, f'Invalid description: no device element ({url})'
 
-    udn = device.find('upnp:UDN', XML_DEVICE_NS)
-    assert udn is not None, f'Invalid description: no UDN element ({url})'
-
-    return device, udn.text.strip()[5:]
+    return device, get_device_uuid(xml, url)
 
 
 # Decorator
