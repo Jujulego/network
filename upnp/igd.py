@@ -26,8 +26,19 @@ class IGD(BaseUPnP):
     async def init(self):
         await super().init()
 
+    async def _search(self, event):
+        protocol = await self.ssdp.search(IGD_URN)
+
+        @protocol.on('disconnected')
+        def disconnected():
+            event.set()
+
     async def search(self):
-        return await self.ssdp.search(IGD_URN)
+        event = asyncio.Event()
+        task = self._loop.create_task(self._search(event))
+
+        await task
+        await event.wait()
 
     def gateways(self) -> List[SSDPRemoteDevice]:
         return list(filter(lambda device: device.type == IGD_URN, self.store))
@@ -42,23 +53,21 @@ class IGD(BaseUPnP):
             print(f'{_s.bold}Up device:{_s.reset} {repr(device)} ({msg.kind})')
 
 
-async def main():
+async def main(loop: asyncio.AbstractEventLoop):
     # Init service
-    igd = IGD()
+    igd = IGD(loop=loop)
     await igd.init()
 
     # Find gateways
-    protocol = await igd.search()
+    await igd.search()
+    gateways = igd.gateways()
 
-    @protocol.on('disconnected')
-    def disconnected():
-        gateways = igd.gateways()
+    print('Gateways :')
+    for gateway in gateways:
+        print(f'- {gateway}')
 
-        print('Gateways :')
-        for gateway in gateways:
-            print(f'- {gateway}')
-
-        print(f'{len(gateways)} gateway(s)')
+    print(f'{len(gateways)} gateway(s)')
+    loop.stop()
 
 
 if __name__ == '__main__':
@@ -79,5 +88,5 @@ if __name__ == '__main__':
 
     # Start !
     loop = asyncio.get_event_loop()
-    loop.run_until_complete(main())
+    loop.run_until_complete(main(loop))
     loop.run_forever()
