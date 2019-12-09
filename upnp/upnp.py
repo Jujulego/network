@@ -16,12 +16,11 @@ TTL = 4
 
 
 # Class
-class SSDP:
-    def __init__(self, *, loop: Optional[asyncio.AbstractEventLoop] = None):
-        if loop is None:
-            loop = asyncio.get_event_loop()
-
-        self._loop = loop
+class UPnP:
+    def __init__(self, *, auto_search: Optional[str] = None, loop: Optional[asyncio.AbstractEventLoop] = None):
+        # Attributes
+        self.auto_search = auto_search
+        self._loop = loop or asyncio.get_event_loop()
         self._searching = False
 
         # - ssdp
@@ -38,6 +37,9 @@ class SSDP:
     async def init(self):
         await self.ssdp.start()
 
+        if self.auto_search is not None:
+            await self.ssdp.search(self.auto_search)
+
     def on_new_device(self, device: SSDPRemoteDevice):
         print(f'{_s.bold}New device:{_s.reset} {repr(device)}')
 
@@ -52,8 +54,8 @@ async def start_cli(streams=None, *, loop=None):
     await interact(
         streams=streams or get_standard_streams(use_stderr=False, loop=loop),
         locals={
-            'ssdp': ssdp.ssdp,
-            'store': ssdp.store
+            'ssdp': upnp.ssdp,
+            'store': upnp.store
         },
         loop=loop
     )
@@ -64,6 +66,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--no-cli", action="store_true")
     parser.add_argument("--no-color", action="store_true")
+    parser.add_argument("--search", "-s", type=str)
     parser.add_argument("--serve", metavar="[host:]port", type=int)
     parser.add_argument("--verbose", "-v", action="count", default=0)
 
@@ -80,14 +83,15 @@ if __name__ == '__main__':
     # Start !
     loop = asyncio.get_event_loop()
 
-    ssdp = SSDP(loop=loop)
-    loop.run_until_complete(ssdp.init())
+    upnp = UPnP(auto_search=args.search, loop=loop)
+    loop.run_until_complete(upnp.init())
 
     # CLI setup
     if not args.no_cli:
         if args.serve:
             host, port = parse_server(args.serve, parser)
             task = asyncio.start_server(lambda r, w: start_cli(streams=(r, w)), host, port, loop=loop)
+
         else:
             task = start_cli()
 

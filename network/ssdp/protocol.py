@@ -41,6 +41,7 @@ class SSDPProtocol(asyncio.DatagramProtocol, pyee.AsyncIOEventEmitter):
         sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, self.ttl)
 
         # logging
+
         logger.info(f'Connected to {self.multicast[0]}:{self.multicast[1]}')
         self.emit('connected')
 
@@ -65,7 +66,7 @@ class SSDPProtocol(asyncio.DatagramProtocol, pyee.AsyncIOEventEmitter):
             self.transport.sendto(data, self.multicast)
 
         # logging
-        logger.debug(f'{data}')
+        logger.debug(f'{self.multicast[0]}:{self.multicast[1]} <= {data}')
 
     def close(self):
         if self.transport is not None:
@@ -87,5 +88,6 @@ class SSDPSearchProtocol(SSDPProtocol):
         sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, self.ttl)
 
         # logging
+        logger.debug('Search using SSDPSearchProtocol')
         logger.info(f'Connected to {self.multicast[0]}:{self.multicast[1]}')
         self.emit('connected')
