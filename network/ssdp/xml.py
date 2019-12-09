@@ -18,7 +18,7 @@ logger = logging.getLogger('ssdp:xml')
 # Utils
 @with_event_loop
 async def get_xml(url: str, *, loop: asyncio.AbstractEventLoop) -> ET.Element:
-    logger.debug(f'Getting {url}')
+    logger.info(f'Getting {url}')
 
     async with aiohttp.ClientSession(loop=loop) as session:
         async with session.get(url) as response:

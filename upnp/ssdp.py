@@ -42,7 +42,7 @@ class SSDP:
         print(f'{_s.bold}New device:{_s.reset} {repr(device)}')
 
     def on_up_device(self, device: SSDPRemoteDevice, msg: SSDPMessage):
-        print(f'{_s.bold}Up device:{_s.reset} {repr(device)} ({"response" if msg.is_response else "notify"})')
+        print(f'{_s.bold}Up device:{_s.reset} {repr(device)} ({msg.kind})')
 
     def on_down_device(self, device: SSDPRemoteDevice):
         print(f'{_s.bold}Down device:{_s.reset} {repr(device)}')

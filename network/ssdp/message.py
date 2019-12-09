@@ -73,6 +73,13 @@ class SSDPMessage:
         return self._gen_message()
 
     @property
+    def kind(self) -> str:
+        if self.is_response:
+            return 'response'
+
+        return self.method.lower()
+
+    @property
     def host(self) -> Optional[Address]:
         host = self.headers.get('HOST')
 

@@ -123,7 +123,7 @@ class SSDPRemoteDevice(RemoteDevice):
 
     def _update_sub_device(self, xml: ET.Element, msg: SSDPMessage):
         uuid = get_device_uuid(xml, self.location)
-        device = self._children[uuid]
+        device = self._children.get(uuid)
 
         if device is not None:
             device.update(msg, xml)

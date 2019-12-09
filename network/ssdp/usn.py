@@ -20,7 +20,7 @@ class USN:
         # Get parts
         parts = parts.groupdict()
 
-        self.uuid = parts['uuid']
+        self.uuid = parts['uuid'].lower()
         self.is_root = parts['root'] is not None
         self.urn = URN(parts['urn']) if parts['urn'] is not None else None
 

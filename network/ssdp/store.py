@@ -68,6 +68,8 @@ class SSDPStore(pyee.AsyncIOEventEmitter):
     # Methods
     @log_xml_errors
     async def _add_device(self, msg: SSDPMessage, addr: Address):
+        assert msg.location is not None, f'Invalid message: no LOCATION header ({msg.kind} from {addr[0]})'
+
         xml, uuid = await get_device_xml(msg.location, loop=self._loop)
         device = SSDPRemoteDevice(msg, xml, addr[0], loop=self._loop)
         self._devices[uuid] = device
