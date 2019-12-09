@@ -1,5 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="upnp - ssdp" type="PythonConfigurationType" factoryName="Python">
+  <configuration default="false" name="upnp - discovery" type="PythonConfigurationType" factoryName="Python">
     <module name="network" />
     <option name="INTERPRETER_OPTIONS" value="" />
     <option name="PARENT_ENVS" value="true" />
@@ -12,7 +12,7 @@
     <option name="ADD_CONTENT_ROOTS" value="true" />
     <option name="ADD_SOURCE_ROOTS" value="true" />
     <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
-    <option name="SCRIPT_NAME" value="C:\Users\julie\PycharmProjects\network\upnp\upnp.py" />
+    <option name="SCRIPT_NAME" value="C:\Users\julie\PycharmProjects\network\upnp\discovery.py" />
     <option name="PARAMETERS" value="--no-color" />
     <option name="SHOW_COMMAND_LINE" value="false" />
     <option name="EMULATE_TERMINAL" value="true" />

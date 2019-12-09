@@ -72,3 +72,6 @@ class WindowsSearchProtocol(pyee.AsyncIOEventEmitter):
         assert request.method == 'M-SEARCH', f'Invalid search request: wrong message kind ({request.kind})'
 
         self.future = self._loop.run_in_executor(None, self._send_message, request)
+
+    def close(self):
+        pass

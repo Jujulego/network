@@ -90,6 +90,7 @@ class SSDPServer(AsyncIOEventEmitter):
         )
 
         protocol.send_message(msg)
+        self._loop.call_later(mx * 2, protocol.close)
 
         return protocol
 
