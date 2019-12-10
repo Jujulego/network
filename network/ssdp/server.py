@@ -64,7 +64,7 @@ class SSDPServer(AsyncIOEventEmitter):
         assert self.__started
         self._protocol.send_message(msg)
 
-    async def search(self, st: str, mx: int = 5) -> Union[SSDPSearchProtocol, WindowsSearchProtocol]:
+    async def search(self, *targets: str, mx: int = 5) -> Union[SSDPSearchProtocol, WindowsSearchProtocol]:
         # Prepare protocol
         if ON_WINDOWS:
             protocol = WindowsSearchProtocol(self.multicast, ttl=self.ttl, loop=self._loop)
@@ -79,17 +79,19 @@ class SSDPServer(AsyncIOEventEmitter):
         protocol.on('recv', self._on_message)
 
         # Send message
-        msg = SSDPMessage(
-            method='M-SEARCH',
-            headers={
-                'HOST': '239.255.255.250:1900',
-                'MAN': '"ssdp:discover"',
-                'MX': mx,
-                'ST': st
-            }
-        )
+        for st in targets:
+            msg = SSDPMessage(
+                method='M-SEARCH',
+                headers={
+                    'HOST': '239.255.255.250:1900',
+                    'MAN': '"ssdp:discover"',
+                    'MX': mx,
+                    'ST': st
+                }
+            )
 
-        protocol.send_message(msg)
+            protocol.send_message(msg)
+
         self._loop.call_later(mx * 2, protocol.close)
 
         return protocol

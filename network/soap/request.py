@@ -27,7 +27,7 @@ class SOAPRequest:
             'SOAPAction': f'"{self.service_type}#{self.action}"'
         }
 
-    def body(self):
+    def body(self) -> bytes:
         xml_ns = self.xml_ns()
 
         root = ET.Element(add_ns('soap:Envelope', xml_ns))

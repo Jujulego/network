@@ -1,5 +1,6 @@
 import aiohttp
 import asyncio
+import logging
 
 from typing import Dict, Optional
 
@@ -7,7 +8,11 @@ from .error import SOAPError
 from .request import SOAPRequest
 from .response import SOAPResponse
 
+# Logging
+logger = logging.getLogger('soap')
 
+
+# Class
 class SOAPCapability:
     def __init__(self, *, loop: Optional[asyncio.AbstractEventLoop] = None):
         self._loop = loop or asyncio.get_event_loop()
@@ -26,10 +31,14 @@ class SOAPCapability:
         headers = request.headers()
         body = request.body()
 
+        logger.debug(f'{request.control_url} <= {body}')
+
         async with aiohttp.ClientSession(loop=self._loop) as session:
             async with session.post(request.control_url, headers=headers, data=body) as resp:
                 is_error = (resp.status == 500)
                 data = await resp.text(encoding='utf-8')
+
+                logger.debug(f'{request.control_url} => {data}')
 
                 return SOAPResponse(
                     request.service_type, request.action,

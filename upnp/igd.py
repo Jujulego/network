@@ -1,16 +1,24 @@
 import argparse
 import asyncio
 import logging
+import netifaces
 import sys
 
-from network.ssdp import SSDPMessage, SSDPRemoteDevice
+from aiohttp import web
+from network.soap import SOAPError
+from network.ssdp import URN, SSDPRemoteDevice
 from network.utils.style import style as _s
+from pprint import pprint
 from typing import List, Optional
 
 from upnp.base import BaseUPnP
 
 # Constants
-IGD_URN = 'urn:schemas-upnp-org:device:InternetGatewayDevice:1'
+IGD_URNS = [
+    'urn:schemas-upnp-org:device:InternetGatewayDevice:1',
+    'urn:schemas-upnp-org:device:InternetGatewayDevice:2'
+]
+WANIP_URN = 'urn:schemas-upnp-org:service:WANIPConn1'
 
 
 # Class
@@ -18,16 +26,12 @@ class IGD(BaseUPnP):
     def __init__(self, *, loop: Optional[asyncio.AbstractEventLoop] = None):
         super().__init__(loop=loop)
 
-        # Callbacks
-        self.store.on('new', self.on_new_device)
-        self.store.on('up', self.on_up_device)
-
     # Methods
     async def init(self):
         await super().init()
 
     async def _search(self, event):
-        protocol = await self.ssdp.search(IGD_URN)
+        protocol = await self.ssdp.search(*IGD_URNS)
 
         @protocol.on('disconnected')
         def disconnected():
@@ -41,33 +45,68 @@ class IGD(BaseUPnP):
         await event.wait()
 
     def gateways(self) -> List[SSDPRemoteDevice]:
-        return list(filter(lambda device: device.type == IGD_URN, self.store))
-
-    # Callbacks
-    def on_new_device(self, device: SSDPRemoteDevice):
-        if device.type == IGD_URN:
-            print(f'{_s.bold}New device:{_s.reset} {repr(device)}')
-
-    def on_up_device(self, device: SSDPRemoteDevice, msg: SSDPMessage):
-        if device.type == IGD_URN:
-            print(f'{_s.bold}Up device:{_s.reset} {repr(device)} ({msg.kind})')
+        return list(filter(lambda device: device.type in IGD_URNS, self.store))
 
 
-async def main(loop: asyncio.AbstractEventLoop):
+def get_ip() -> str:
+    return netifaces.gateways()['default'][netifaces.AF_INET][0]
+
+
+async def main(loop: asyncio.AbstractEventLoop, ip: str, port: int):
     # Init service
     igd = IGD(loop=loop)
     await igd.init()
 
     # Find gateways
     await igd.search()
-    gateways = igd.gateways()
+    gws = igd.gateways()
 
     print('Gateways :')
-    for gateway in gateways:
-        print(f'- {gateway}')
+    for gw in gws:
+        print(f'- {gw}')
 
-    print(f'{len(gateways)} gateway(s)')
-    loop.stop()
+    print(f'{len(gws)} gateway(s)')
+
+    if len(gws) == 0:
+        print(_s.red('No gateway found'))
+        loop.stop()
+        sys.exit(1)
+
+    gw = gws[0]
+    service = gw.children[0].children[0].service('urn:upnp-org:serviceId:WANIPConn1')
+
+    try:
+        pprint(await service.action('GetExternalIPAddress')())
+
+        if gw.type.version == '2':
+            try:
+                pprint(await service.action('GetListOfPortMappings')(
+                    NewManage='1',
+                    NewStartPort=port,
+                    NewEndPort=port,
+                    NewProtocol='TCP',
+                    NewNumberOfPorts='10'
+                ))
+            except SOAPError as err:
+                if err.code != 730:
+                    raise
+                else:
+                    print('No port mapping')
+
+        pprint(await service.action('AddPortMapping')(
+            NewRemoteHost='',
+            NewExternalPort=port,
+            NewProtocol='TCP',
+            NewInternalPort=port,
+            NewInternalClient=ip,
+            NewEnabled='1',
+            NewPortMappingDescription='test igd',
+            NewLeaseDuration=3600
+        ))
+    except SOAPError as err:
+        print(_s.red(f'SOAPError: {err}'))
+        loop.stop()
+        sys.exit(1)
 
 
 if __name__ == '__main__':
@@ -86,7 +125,21 @@ if __name__ == '__main__':
     elif args.verbose >= 1:
         logging.basicConfig(level=logging.INFO)
 
+    # Web server
+    routes = web.RouteTableDef()
+
+    @routes.get('/')
+    async def hello(request: web.Request):
+        return web.Response(text="Hello, world")
+
+    app = web.Application()
+    app.add_routes(routes)
+
+    ip = '192.168.1.128'  # get_ip()
+    port = 8080
+
     # Start !
     loop = asyncio.get_event_loop()
-    loop.run_until_complete(main(loop))
-    loop.run_forever()
+    loop.run_until_complete(main(loop, ip, port))
+    web.run_app(app, host=ip, port=port)
+    loop.stop()
