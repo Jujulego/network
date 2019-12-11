@@ -6,14 +6,15 @@ import sys
 
 from aiohttp import web
 from network.soap import SOAPError
-from network.ssdp import URN, SSDPRemoteDevice
+from network.ssdp import SSDPServer, SSDPStore, SSDPRemoteDevice
 from network.utils.style import style as _s
 from pprint import pprint
 from typing import List, Optional
 
-from upnp.base import BaseUPnP
-
 # Constants
+MULTICAST = ("239.255.255.250", 1900)
+TTL = 4
+
 IGD_URNS = [
     'urn:schemas-upnp-org:device:InternetGatewayDevice:1',
     'urn:schemas-upnp-org:device:InternetGatewayDevice:2'
@@ -22,13 +23,21 @@ WANIP_URN = 'urn:schemas-upnp-org:service:WANIPConn1'
 
 
 # Class
-class IGD(BaseUPnP):
+class IGD:
     def __init__(self, *, loop: Optional[asyncio.AbstractEventLoop] = None):
-        super().__init__(loop=loop)
+        # Attributes
+        self._loop = loop or asyncio.get_event_loop()
+        self._searching = False
+
+        # - ssdp
+        self.ssdp = SSDPServer(MULTICAST, ttl=TTL, loop=self._loop)
+
+        self.store = SSDPStore(loop=loop)
+        self.store.connect_to(self.ssdp)
 
     # Methods
     async def init(self):
-        await super().init()
+        await self.ssdp.start()
 
     async def _search(self, event):
         protocol = await self.ssdp.search(*IGD_URNS)

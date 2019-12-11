@@ -8,7 +8,7 @@ class URN:
         parts = urn.split(':')
 
         if parts[0] != 'urn' or len(parts) != 5:
-            raise ValueError(f'Invalid URN : {urn}')
+            raise ValueError(f'Invalid URN: {urn}')
 
         # Get parts
         self.domain = parts[1]

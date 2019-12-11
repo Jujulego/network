@@ -5,20 +5,28 @@ import sys
 
 from aioconsole import interact, get_standard_streams
 from aioconsole.server import parse_server
-from network.ssdp import SSDPMessage, SSDPRemoteDevice
+from network.ssdp import SSDPServer, SSDPStore, SSDPMessage, SSDPRemoteDevice
 from network.utils.style import style as _s
 from typing import Optional
 
-from .base import BaseUPnP
+# Constants
+MULTICAST = ("239.255.255.250", 1900)
+TTL = 4
 
 
 # Class
-class UPnP(BaseUPnP):
+class UPnP:
     def __init__(self, *, auto_search: Optional[str] = None, loop: Optional[asyncio.AbstractEventLoop] = None):
-        super().__init__(loop=loop)
-
         # Attributes
         self.auto_search = auto_search
+        self._loop = loop or asyncio.get_event_loop()
+        self._searching = False
+
+        # - ssdp
+        self.ssdp = SSDPServer(MULTICAST, ttl=TTL, loop=self._loop)
+
+        self.store = SSDPStore(loop=loop)
+        self.store.connect_to(self.ssdp)
 
         # Callbacks
         self.store.on('new', self.on_new_device)
@@ -27,7 +35,7 @@ class UPnP(BaseUPnP):
 
     # Methods
     async def init(self):
-        await super().init()
+        await self.ssdp.start()
 
         if self.auto_search is not None:
             await self.ssdp.search(self.auto_search)
