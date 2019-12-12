@@ -29,7 +29,7 @@ class SSDPMessage:
                 self.headers['HOST'] = "239.255.255.250:1900"
 
     def __repr__(self):
-        return "<ssdp.SSDPMessage: {}>".format(self.method or "RESPONSE")
+        return f'<ssdp.SSDPMessage: {self.kind}>'
 
     # Methods
     def _parse_message(self, message):

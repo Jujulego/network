@@ -1,7 +1,7 @@
 import argparse
 import asyncio
 import logging
-import netifaces
+import socket
 import sys
 
 from aiohttp import web
@@ -58,7 +58,14 @@ class IGD:
 
 
 def get_ip() -> str:
-    return netifaces.gateways()['default'][netifaces.AF_INET][0]
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
+    try:
+        s.connect(("8.8.8.8", 80))
+        return s.getsockname()[0]
+
+    finally:
+        s.close()
 
 
 async def main(loop: asyncio.AbstractEventLoop, ip: str, port: int):
@@ -144,7 +151,7 @@ if __name__ == '__main__':
     app = web.Application()
     app.add_routes(routes)
 
-    ip = '192.168.1.128'  # get_ip()
+    ip = get_ip()
     port = 8080
 
     # Start !
