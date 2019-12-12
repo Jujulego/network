@@ -2,7 +2,7 @@ import asyncio
 import logging
 
 from network.gena import get_gena_session
-from network.soap import SOAPCapability
+from network.soap import SOAPSession
 from network.utils.machine import StateMachine
 from network.utils.style import style as _s
 from typing import Any, Dict, List, Optional, Union
@@ -24,11 +24,10 @@ def xml_text(e: Optional[ET.Element]) -> Optional[str]:
 
 
 # Classes
-class SSDPService(StateMachine, SOAPCapability):
+class SSDPService(StateMachine):
     def __init__(self, xmld: ET.Element, xmls: ET.Element, base_url: str, *,
                  loop: Optional[asyncio.AbstractEventLoop] = None):
-        StateMachine.__init__(self, 'down', loop=loop)
-        SOAPCapability.__init__(self, loop=loop)
+        super().__init__('down', loop=loop)
 
         # Attributes
         self.id = get_service_id(xmld, base_url)
@@ -37,7 +36,10 @@ class SSDPService(StateMachine, SOAPCapability):
         self._actions = {}  # type: Dict[str, Action]
         self._state = {}    # type: Dict[str, StateVariable]
         self._logger = logging.getLogger(f'ssdp:service:{self.id}')
+
+        # - protocols
         self._gena = get_gena_session()
+        self._soap = SOAPSession()
 
         # Parse xml
         self._parse_xml_device(xmld, base_url)
@@ -92,7 +94,8 @@ class SSDPService(StateMachine, SOAPCapability):
             soap_args[n] = var.type.from_python(v)
 
         # Request
-        results = await self.soap_call(self.control, self.type.urn, action.name, soap_args)
+        async with self._soap as session:
+            results = await session.call(self.control, self.type.urn, action.name, soap_args)
 
         # Convert response
         py_resp = {}
