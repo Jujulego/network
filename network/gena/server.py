@@ -74,6 +74,10 @@ class GENAServer:
 
     # Properties
     @property
+    def started(self) -> bool:
+        return self._site is not None
+
+    @property
     def url(self) -> Optional[str]:
         if self._site is not None:
             return None
@@ -98,16 +102,20 @@ class GENASession:
         await self.close()
 
     # Methods
-    def open(self):
+    async def open(self):
         self._session = aiohttp.ClientSession()
+
+        if not self._server.started:
+            await self._server.start()
 
     async def handler(self, request: web.BaseRequest):
         pass
 
-    def subscribe(self, event: str, *vars: str, timeout: int=3600):
+    async def subscribe(self, event: str, *vars: str, timeout: int = 3600):
         assert self._session is not None, 'GENA session must be opened !'
 
-        self._session.request(
+        # Send request
+        await self._session.request(
             'SUBSCRIBE', event,
             headers={
                 'CALLBACK': self._callback,
