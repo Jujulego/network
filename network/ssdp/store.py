@@ -35,7 +35,7 @@ class SSDPStore(pyee.AsyncIOEventEmitter):
 
         super().__init__(loop=loop)
 
-        # - stores
+        # - data
         self._tasks = {}    # type: Dict[str, asyncio.Task]
         self._devices = {}  # type: Dict[str, SSDPRemoteDevice]
         self._sub_devices = WeakValueDictionary()  # type: WeakValueDictionary[str, SSDPRemoteDevice]

@@ -1,6 +1,7 @@
 import asyncio
 import logging
 
+from network.gena import get_gena_session
 from network.soap import SOAPCapability
 from network.utils.machine import StateMachine
 from network.utils.style import style as _s
@@ -36,12 +37,13 @@ class SSDPService(StateMachine, SOAPCapability):
         self._actions = {}  # type: Dict[str, Action]
         self._state = {}    # type: Dict[str, StateVariable]
         self._logger = logging.getLogger(f'ssdp:service:{self.id}')
+        self._gena = get_gena_session()
 
         # Parse xml
         self._parse_xml_device(xmld, base_url)
         self._parse_xml_service(xmls)
 
-        # State
+        # Set state
         self.state = 'up'
 
     def __repr__(self):
@@ -100,6 +102,10 @@ class SSDPService(StateMachine, SOAPCapability):
             py_resp[n] = var.type.to_python(v)
 
         return py_resp
+
+    async def subscribe(self, *vars: str, timeout: int = 3600):
+        async with self._gena as session:
+            await session.subscribe(self.event_sub, *vars, timeout=timeout)
 
     def update(self, xmld: ET.Element, xmls: ET.Element, base_url: str):
         # Resets
@@ -254,11 +260,16 @@ class StateVariable:
 
         # - internals
         self._service = service
+        self._value = None
 
     def __repr__(self):
         return _s.blue(
             f'<StateVariable: {_s_type}{self.type} {_s.reset}{self.name}{_s.blue}>'
         )
+
+    # Methods
+    async def subscribe(self, timeout: int = 3600):
+        await self._service.subscribe(self.name, timeout=timeout)
 
 
 class ValueRange:

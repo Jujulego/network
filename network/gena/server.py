@@ -95,7 +95,7 @@ class GENASession:
         self._session = None  # type: Optional[aiohttp.ClientSession]
 
     async def __aenter__(self) -> 'GENASession':
-        self.open()
+        await self.open()
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
