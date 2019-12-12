@@ -1,7 +1,7 @@
 import aiohttp
-import asyncio
 import logging
 
+from network.base import BaseSession
 from typing import Dict, Optional
 
 from .error import SOAPError
@@ -13,17 +13,10 @@ logger = logging.getLogger('soap')
 
 
 # Class
-class SOAPSession:
+class SOAPSession(BaseSession):
     def __init__(self):
         # Attributes
         self._session = None  # type: Optional[aiohttp.ClientSession]
-
-    async def __aenter__(self):
-        await self.open()
-        return self
-
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
-        await self.close()
 
     # Methods
     async def open(self):

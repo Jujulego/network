@@ -3,6 +3,7 @@ import logging
 import random
 
 from aiohttp import web
+from network.base import BaseSession
 from typing import Dict, Optional
 
 # Constants
@@ -86,20 +87,13 @@ class GENAServer:
 
 
 # Class
-class GENASession:
+class GENASession(BaseSession):
     def __init__(self, callback: str, server: GENAServer):
         # Attributes
         self._callback = callback
 
         self._server = server
         self._session = None  # type: Optional[aiohttp.ClientSession]
-
-    async def __aenter__(self) -> 'GENASession':
-        await self.open()
-        return self
-
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
-        await self.close()
 
     # Methods
     async def open(self):
