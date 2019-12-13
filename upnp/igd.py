@@ -39,19 +39,9 @@ class IGD:
     async def init(self):
         await self.ssdp.start()
 
-    async def _search(self, event):
-        protocol = await self.ssdp.search(*IGD_URNS)
-
-        @protocol.on('disconnected')
-        def disconnected():
-            event.set()
-
     async def search(self):
-        event = asyncio.Event()
-        task = self._loop.create_task(self._search(event))
-
-        await task
-        await event.wait()
+        protocol = await self.ssdp.search(*IGD_URNS)
+        await protocol.wait('disconnected')
 
     def gateways(self) -> List[SSDPRemoteDevice]:
         return list(filter(lambda device: device.type in IGD_URNS, self.store))

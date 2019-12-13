@@ -1,14 +1,13 @@
 import aiohttp
 import logging
-import random
 
 from aiohttp import web
 from network.base import BaseSession
+from network.utils.str import generate_random_str
 from typing import Dict, Optional
 
 # Constants
 CALLBACK_SIZE = 10
-ALPHABET = 'abcdefghijklmnopqrstuvwxyz0123456789'
 
 # Logging
 logger = logging.getLogger('gena')
@@ -27,7 +26,7 @@ class GENAServer:
         cb = None
 
         while cb is None or cb in self._sessions:
-            cb = ''.join(random.choice(ALPHABET) for _ in range(CALLBACK_SIZE))
+            cb = generate_random_str(CALLBACK_SIZE)
 
         return cb
 

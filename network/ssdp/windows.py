@@ -1,8 +1,8 @@
 import asyncio
 import logging
 import socket
-import pyee
 
+from network.base.emitter import EventEmitter
 from network.typing import Address
 from typing import Optional
 
@@ -13,9 +13,9 @@ logger = logging.getLogger("ssdp")
 
 
 # Class
-class WindowsSearchProtocol(pyee.AsyncIOEventEmitter):
+class WindowsSearchProtocol(EventEmitter):
     def __init__(self, multicast: Address, *, ttl: int = 4, loop: Optional[asyncio.AbstractEventLoop] = None):
-        pyee.AsyncIOEventEmitter.__init__(self, loop or asyncio.get_event_loop())
+        super().__init__(loop)
 
         # Attributes
         self.multicast = multicast

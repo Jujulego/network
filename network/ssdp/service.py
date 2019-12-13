@@ -3,7 +3,7 @@ import logging
 
 from network.gena import get_gena_session
 from network.soap import SOAPSession
-from network.utils.machine import StateMachine
+from network.base.machine import StateMachine
 from network.utils.style import style as _s
 from typing import Any, Dict, List, Optional, Union
 from urllib.parse import urljoin

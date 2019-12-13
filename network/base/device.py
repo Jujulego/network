@@ -2,8 +2,8 @@ import asyncio
 
 from typing import Optional, TypeVar
 
-from .utils.machine import StateMachine
-from .utils.style import style as _s
+from network.base.machine import StateMachine
+from network.utils.style import style as _s
 
 # Types
 S = TypeVar('S')

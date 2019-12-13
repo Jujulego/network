@@ -1,9 +1,9 @@
 import asyncio
 import logging
-import pyee
 import socket
 import struct
 
+from network.base.emitter import EventEmitter
 from network.typing import Address
 from typing import Optional, Union, Text
 
@@ -14,13 +14,13 @@ logger = logging.getLogger("ssdp")
 
 
 # Classes
-class SSDPProtocol(asyncio.DatagramProtocol, pyee.AsyncIOEventEmitter):
+class SSDPProtocol(asyncio.DatagramProtocol, EventEmitter):
     """
     Receive SSDP messages from the given multicast
     """
 
     def __init__(self, multicast: Address, *, ttl: int = 4, loop: Optional[asyncio.AbstractEventLoop] = None):
-        super().__init__(loop=loop or asyncio.get_event_loop())
+        super().__init__(loop=loop)
 
         # Attributes
         self.transport = None  # type: Optional[asyncio.transports.DatagramTransport]

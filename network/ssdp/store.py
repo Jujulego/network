@@ -1,8 +1,8 @@
 import asyncio
 import itertools
 import logging
-import pyee
 
+from network.base.emitter import EventEmitter
 from network.typing import Address
 from typing import Dict, Iterable, Optional, Union
 from weakref import WeakValueDictionary
@@ -18,7 +18,7 @@ logger = logging.getLogger("ssdp")
 
 
 # Class
-class SSDPStore(pyee.AsyncIOEventEmitter):
+class SSDPStore(EventEmitter):
     """
     Class SSDPStore:
     Collect and manages SSDP remote devices.

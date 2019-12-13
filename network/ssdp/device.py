@@ -1,7 +1,7 @@
 import asyncio
 import logging
 
-from network.device import RemoteDevice
+from network.base.device import RemoteDevice
 from network.utils.xml import strip_ns
 from typing import Optional, Dict, List, Set
 from xml.etree import ElementTree as ET
