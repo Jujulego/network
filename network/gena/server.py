@@ -19,6 +19,7 @@ class GENAServer:
         # Attributes
         self._server = web.Server(self._handler)
         self._site = None  # type: Optional[web.TCPSite]
+        self._runner = None  # type: Optional[web.ServerRunner]
         self._sessions = {}  # type: Dict[str, GENASession]
 
     # Methods
@@ -45,13 +46,13 @@ class GENAServer:
         return web.Response(status=200)
 
     async def start(self):
-        if self._site is None:
+        if self._runner is None:
             # Runner
-            runner = web.ServerRunner(self._server)
-            await runner.setup()
+            self._runner = web.ServerRunner(self._server)
+            await self._runner.setup()
 
             # Site
-            self._site = web.TCPSite(runner)
+            self._site = web.TCPSite(self._runner)
 
         # Start site
         await self._site.start()
@@ -66,16 +67,16 @@ class GENAServer:
         return session
 
     async def stop(self):
-        if self._site is None:
+        if self._runner is None:
             return
 
-        await self._site.stop()
+        await self._runner.cleanup()
         logger.info('GENA server stopped')
 
     # Properties
     @property
     def started(self) -> bool:
-        return self._site is not None
+        return self._runner is not None
 
     @property
     def url(self) -> Optional[str]:

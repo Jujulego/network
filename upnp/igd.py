@@ -12,6 +12,8 @@ from pprint import pprint
 from typing import List
 
 # Constants
+APP_PORT = 8000
+
 MULTICAST = ("239.255.255.250", 1900)
 TTL = 4
 
@@ -26,7 +28,7 @@ WANIP_URN = 'urn:schemas-upnp-org:service:WANIPConn1'
 class IGD:
     def __init__(self):
         # Attributes
-        self._loop = loop or asyncio.get_event_loop()
+        self._loop = asyncio.get_event_loop()
         self._searching = False
 
         # - ssdp
@@ -43,23 +45,28 @@ class IGD:
         protocol = await self.ssdp.search(*IGD_URNS)
         await protocol.wait('disconnected')
 
+    async def stop(self):
+        await self.ssdp.stop()
+
     def gateways(self) -> List[SSDPRemoteDevice]:
         return list(filter(lambda device: device.type in IGD_URNS, self.store))
 
 
-def get_ip() -> str:
+def get_ip(device: SSDPRemoteDevice) -> str:
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
     try:
-        s.connect(("8.8.8.8", 80))
+        s.connect((device.address, 80))
         return s.getsockname()[0]
 
     finally:
         s.close()
 
 
-async def main(loop: asyncio.AbstractEventLoop, ip: str, port: int):
-    # Init service
+async def main():
+    print('Searching for gateways ...')
+
+    # Init ssdp service
     igd = IGD()
     await igd.init()
 
@@ -75,44 +82,61 @@ async def main(loop: asyncio.AbstractEventLoop, ip: str, port: int):
 
     if len(gws) == 0:
         print(_s.red('No gateway found'))
-        loop.stop()
-        sys.exit(1)
 
+        return
+
+    # Stop ssdp discovery
+    await igd.stop()
+
+    # Get service
     gw = gws[0]
     service = gw.children[0].children[0].service('urn:upnp-org:serviceId:WANIPConn1')
 
+    # Get internal ip to the gateway
+    ip = get_ip(gw)
+
     try:
-        pprint(await service.action('GetExternalIPAddress')())
+        # Get external ip address
+        result = await service.action('GetExternalIPAddress')()
+        ext_ip = result['NewExternalIPAddress']
 
-        if gw.type.version == '2':
-            try:
-                pprint(await service.action('GetListOfPortMappings')(
-                    NewManage='1',
-                    NewStartPort=port,
-                    NewEndPort=port,
-                    NewProtocol='TCP',
-                    NewNumberOfPorts='10'
-                ))
-            except SOAPError as err:
-                if err.code != 730:
-                    raise
-                else:
-                    print('No port mapping')
-
-        pprint(await service.action('AddPortMapping')(
+        # Open external port
+        await service.action('AddPortMapping')(
             NewRemoteHost='',
-            NewExternalPort=port,
+            NewExternalPort=APP_PORT,
             NewProtocol='TCP',
-            NewInternalPort=port,
+            NewInternalPort=APP_PORT,
             NewInternalClient=ip,
             NewEnabled='1',
             NewPortMappingDescription='test igd',
             NewLeaseDuration=3600
-        ))
+        )
     except SOAPError as err:
         print(_s.red(f'SOAPError: {err}'))
-        loop.stop()
-        sys.exit(1)
+
+        return
+
+    # Web server
+    routes = web.RouteTableDef()
+
+    @routes.get('/')
+    async def hello(request: web.Request):
+        print(request)
+        return web.Response(text="Hello, world")
+
+    app = web.Application()
+    app.add_routes(routes)
+
+    # Run server
+    runner = web.AppRunner(app)
+    await runner.setup()
+
+    print(f'Web server available at http://{ext_ip}:{APP_PORT}/')
+    site = web.TCPSite(runner, host=ip, port=APP_PORT)
+    await site.start()
+
+    await asyncio.sleep(10 * 60)
+    await runner.cleanup()
 
 
 if __name__ == '__main__':
@@ -131,21 +155,5 @@ if __name__ == '__main__':
     elif args.verbose >= 1:
         logging.basicConfig(level=logging.INFO)
 
-    # Web server
-    routes = web.RouteTableDef()
-
-    @routes.get('/')
-    async def hello(request: web.Request):
-        return web.Response(text="Hello, world")
-
-    app = web.Application()
-    app.add_routes(routes)
-
-    ip = get_ip()
-    port = 8080
-
-    # Start !
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(main(loop, ip, port))
-    web.run_app(app, host=ip, port=port)
-    loop.stop()
+    # Run !
+    asyncio.run(main())

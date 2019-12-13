@@ -96,7 +96,7 @@ class SSDPServer(EventEmitter):
 
         return protocol
 
-    def stop(self):
+    async def stop(self):
         if self.__started:
             self._protocol.close()
 
