@@ -3,7 +3,7 @@ import logging
 
 from network.base.device import RemoteDevice
 from network.utils.xml import strip_ns
-from typing import Optional, Dict, List, Set
+from typing import Dict, List, Optional, Set, Union
 from xml.etree import ElementTree as ET
 
 from .message import SSDPMessage
@@ -168,6 +168,21 @@ class SSDPRemoteDevice(RemoteDevice):
 
     def service(self, sid: str) -> SSDPService:
         return self._services[sid]
+
+    def find_service(self, stype: Union[str, URN], in_children: bool = False) -> List[SSDPService]:
+        results = []
+
+        # Search in services
+        for s in self._services.values():
+            if s.type == stype:
+                results.append(s)
+
+        # Search in children's services
+        if in_children:
+            for c in self._children.values():
+                results.extend(c.find_service(stype, in_children))
+
+        return results
 
     # Callbacks
     def on_down(self, was: str):

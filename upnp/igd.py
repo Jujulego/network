@@ -21,7 +21,7 @@ IGD_URNS = [
     'urn:schemas-upnp-org:device:InternetGatewayDevice:1',
     'urn:schemas-upnp-org:device:InternetGatewayDevice:2'
 ]
-WANIP_URN = 'urn:schemas-upnp-org:service:WANIPConn1'
+WANIP_URN = 'urn:schemas-upnp-org:service:WANIPConnection:1'
 
 
 # Class
@@ -82,15 +82,22 @@ async def main():
 
     if len(gws) == 0:
         print(_s.red('No gateway found'))
-
         return
 
     # Stop ssdp discovery
     await igd.stop()
 
-    # Get service
-    gw = gws[0]
-    service = gw.children[0].children[0].service('urn:upnp-org:serviceId:WANIPConn1')
+    # Get gateway with service
+    for gw in gws:
+        services = gw.find_service(WANIP_URN, in_children=True)
+
+        if len(services) > 0:
+            service = services[0]
+            break
+
+    else:
+        print(_s.red('No valid gateway found'))
+        return
 
     # Get internal ip to the gateway
     ip = get_ip(gw)
