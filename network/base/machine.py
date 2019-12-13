@@ -1,8 +1,5 @@
-import asyncio
-import pyee
-
 from abc import ABC
-from typing import Generic, Optional, TypeVar
+from typing import Generic, TypeVar
 
 from .emitter import EventEmitter
 
@@ -12,8 +9,8 @@ S = TypeVar('S')
 
 # Class
 class StateMachine(Generic[S], ABC, EventEmitter):
-    def __init__(self, initial: S, *, loop: Optional[asyncio.AbstractEventLoop] = None):
-        pyee.AsyncIOEventEmitter.__init__(self, loop)
+    def __init__(self, initial: S):
+        super().__init__()
         self.__state = initial
 
     # Methods

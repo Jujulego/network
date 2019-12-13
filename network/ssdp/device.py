@@ -29,9 +29,8 @@ class SSDPRemoteDevice(RemoteDevice):
     - down (was: str)            : each time the device goes to the state 'down' (was is the previous state)
     """
 
-    def __init__(self, msg: SSDPMessage, xml: ET.Element, addr: str, *,
-                 parent: Optional['SSDPRemoteDevice'] = None, loop: Optional[asyncio.AbstractEventLoop] = None):
-        super().__init__(addr, 'down', loop=loop)
+    def __init__(self, msg: SSDPMessage, xml: ET.Element, addr: str, parent: Optional['SSDPRemoteDevice'] = None):
+        super().__init__(addr, 'down')
 
         # Attributes
         # - metadata
@@ -44,6 +43,7 @@ class SSDPRemoteDevice(RemoteDevice):
         self._children = {}  # type: Dict[str,SSDPRemoteDevice]
 
         # - internals
+        self._loop = asyncio.get_event_loop()
         self._logger = logging.getLogger(self.uuid)
         self._tasks = {}           # type: Dict[str, asyncio.Task]
         self.__down_handle = None  # type: Optional[asyncio.TimerHandle]
@@ -73,7 +73,7 @@ class SSDPRemoteDevice(RemoteDevice):
             self.__down_handle.cancel()
             self.__down_handle = None
 
-    def _parse_xml(self, msg: SSDPMessage, xml: ET.Element, *, update: bool = False):
+    def _parse_xml(self, msg: SSDPMessage, xml: ET.Element):
         # Extract services, sub-devices and metadata
         for child in xml:
             tag = strip_ns(child.tag)
@@ -106,7 +106,7 @@ class SSDPRemoteDevice(RemoteDevice):
 
     @log_xml_errors
     async def _update_service(self, xmld: ET.Element):
-        xmls, sid = await get_service_xml(xmld, self.location, loop=self._loop)
+        xmls, sid = await get_service_xml(xmld, self.location)
         service = self._services.get(sid)
 
         if service is not None:
@@ -115,7 +115,7 @@ class SSDPRemoteDevice(RemoteDevice):
 
         else:
             self._logger.info(f'New service: {sid}')
-            service = SSDPService(xmld, xmls, self.location, loop=self._loop)
+            service = SSDPService(xmld, xmls, self.location)
             self._services[sid] = service
 
             # Emit new event
@@ -129,7 +129,7 @@ class SSDPRemoteDevice(RemoteDevice):
             device.update(msg, xml)
 
         else:
-            device = SSDPRemoteDevice(msg, xml, self.address, parent=self, loop=self._loop)
+            device = SSDPRemoteDevice(msg, xml, self.address, parent=self)
             self._children[uuid] = device
 
     def update(self, msg: SSDPMessage, xml: ET.Element):
@@ -140,7 +140,7 @@ class SSDPRemoteDevice(RemoteDevice):
         self.location = msg.location
 
         # Parse
-        self._parse_xml(msg, xml, update=True)
+        self._parse_xml(msg, xml)
 
     def show_children(self, lvl: int = 0):
         for dev in self.children:

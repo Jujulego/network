@@ -1,4 +1,3 @@
-import asyncio
 import logging
 
 from network.gena import get_gena_session
@@ -25,9 +24,8 @@ def xml_text(e: Optional[ET.Element]) -> Optional[str]:
 
 # Classes
 class SSDPService(StateMachine):
-    def __init__(self, xmld: ET.Element, xmls: ET.Element, base_url: str, *,
-                 loop: Optional[asyncio.AbstractEventLoop] = None):
-        super().__init__('down', loop=loop)
+    def __init__(self, xmld: ET.Element, xmls: ET.Element, base_url: str):
+        super().__init__('down')
 
         # Attributes
         self.id = get_service_id(xmld, base_url)

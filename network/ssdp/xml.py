@@ -1,10 +1,8 @@
 import aiohttp
-import asyncio
 import inspect
 import logging
 
 from functools import wraps
-from network.utils.asyncio import with_event_loop
 from typing import Callable
 from urllib.parse import urljoin
 from xml.etree import ElementTree as ET
@@ -16,11 +14,10 @@ logger = logging.getLogger('ssdp:xml')
 
 
 # Utils
-@with_event_loop
-async def get_xml(url: str, *, loop: asyncio.AbstractEventLoop) -> ET.Element:
+async def get_xml(url: str) -> ET.Element:
     logger.info(f'Getting {url}')
 
-    async with aiohttp.ClientSession(loop=loop) as session:
+    async with aiohttp.ClientSession() as session:
         async with session.get(url) as response:
             assert response.status == 200, f'Unable to get {url} (status {response.status})'
 
@@ -49,9 +46,8 @@ def get_service_scpd_url(xml: ET.Element, url: str) -> str:
     return urljoin(url, scpd.text.strip())
 
 
-@with_event_loop
-async def get_device_xml(url: str, *, loop: asyncio.AbstractEventLoop) -> (ET.Element, str):
-    xml = await get_xml(url, loop=loop)
+async def get_device_xml(url: str) -> (ET.Element, str):
+    xml = await get_xml(url)
 
     device = xml.find('upnp:device', XML_DEVICE_NS)
     assert device is not None, f'Invalid description: no device element ({url})'
@@ -59,12 +55,11 @@ async def get_device_xml(url: str, *, loop: asyncio.AbstractEventLoop) -> (ET.El
     return device, get_device_uuid(device, url)
 
 
-@with_event_loop
-async def get_service_xml(xmld: ET.Element, url: str, *, loop: asyncio.AbstractEventLoop) -> (ET.Element, str):
+async def get_service_xml(xmld: ET.Element, url: str) -> (ET.Element, str):
     sid = get_service_id(xmld, url)
     scpd_url = get_service_scpd_url(xmld, url)
 
-    xmls = await get_xml(scpd_url, loop=loop)
+    xmls = await get_xml(scpd_url)
 
     return xmls, sid
 

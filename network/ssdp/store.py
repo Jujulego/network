@@ -29,11 +29,11 @@ class SSDPStore(EventEmitter):
     - down (device: SSDPRemoteDevice) : each time a device is unactivated
     """
 
-    def __init__(self, *, loop: Optional[asyncio.AbstractEventLoop] = None):
-        if loop is None:
-            loop = asyncio.get_event_loop()
+    def __init__(self):
+        super().__init__()
 
-        super().__init__(loop=loop)
+        # Attributes
+        self._loop = asyncio.get_event_loop()
 
         # - data
         self._tasks = {}    # type: Dict[str, asyncio.Task]
@@ -70,8 +70,8 @@ class SSDPStore(EventEmitter):
     async def _add_device(self, msg: SSDPMessage, addr: Address):
         assert msg.location is not None, f'Invalid message: no LOCATION header ({msg.kind} from {addr[0]})'
 
-        xml, uuid = await get_device_xml(msg.location, loop=self._loop)
-        device = SSDPRemoteDevice(msg, xml, addr[0], loop=self._loop)
+        xml, uuid = await get_device_xml(msg.location)
+        device = SSDPRemoteDevice(msg, xml, addr[0])
         self._devices[uuid] = device
 
         # Connect events
@@ -98,7 +98,7 @@ class SSDPStore(EventEmitter):
 
     @log_xml_errors
     async def _update_device(self, msg: SSDPMessage, location: str):
-        xml, uuid = await get_device_xml(location, loop=self._loop)
+        xml, uuid = await get_device_xml(location)
         device = self.get(uuid)
 
         if device is not None:

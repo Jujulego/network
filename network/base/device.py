@@ -1,6 +1,4 @@
-import asyncio
-
-from typing import Optional, TypeVar
+from typing import TypeVar
 
 from network.base.machine import StateMachine
 from network.utils.style import style as _s
@@ -10,9 +8,8 @@ S = TypeVar('S')
 
 
 class RemoteDevice(StateMachine[S]):
-    def __init__(self, addr: str, initial_state: S, *, loop: Optional[asyncio.AbstractEventLoop] = None):
-        super().__init__(initial_state, loop=loop)
-
+    def __init__(self, addr: str, initial_state: S):
+        super().__init__(initial_state)
         self.address = addr
 
     def __repr__(self):

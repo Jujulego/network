@@ -2,8 +2,8 @@ import asyncio
 import socket
 import sys
 
+from network.base.emitter import EventEmitter
 from network.typing import Address
-from pyee import AsyncIOEventEmitter
 from typing import Optional, Type, Union
 
 from .message import SSDPMessage
@@ -16,9 +16,9 @@ REUSE_PORT = True if hasattr(socket, 'SO_REUSEPORT') else None
 
 
 # Class
-class SSDPServer(AsyncIOEventEmitter):
-    def __init__(self, multicast: Address, ttl: int = 4, loop: Optional[asyncio.AbstractEventLoop] = None):
-        super().__init__(loop or asyncio.get_event_loop())
+class SSDPServer(EventEmitter):
+    def __init__(self, multicast: Address, ttl: int = 4):
+        super().__init__()
 
         # - parameters
         self.multicast = multicast
@@ -26,6 +26,7 @@ class SSDPServer(AsyncIOEventEmitter):
 
         # - internals
         self.__started = False
+        self._loop = asyncio.get_event_loop()
         self._transport = None  # type: Optional[asyncio.DatagramTransport]
         self._protocol = None   # type: Optional[SSDPProtocol]
 
@@ -44,8 +45,7 @@ class SSDPServer(AsyncIOEventEmitter):
 
     def _protocol_factory(self, protocol: Type[SSDPProtocol] = SSDPProtocol):
         return lambda: protocol(
-            self.multicast, ttl=self.ttl,
-            loop=self._loop
+            self.multicast, ttl=self.ttl
         )
 
     async def start(self):
@@ -67,7 +67,7 @@ class SSDPServer(AsyncIOEventEmitter):
     async def search(self, *targets: str, mx: int = 5) -> Union[SSDPSearchProtocol, WindowsSearchProtocol]:
         # Prepare protocol
         if ON_WINDOWS:
-            protocol = WindowsSearchProtocol(self.multicast, ttl=self.ttl, loop=self._loop)
+            protocol = WindowsSearchProtocol(self.multicast, ttl=self.ttl)
 
         else:
             _, protocol = await self._loop.create_datagram_endpoint(

@@ -9,7 +9,7 @@ from network.soap import SOAPError
 from network.ssdp import SSDPServer, SSDPStore, SSDPRemoteDevice
 from network.utils.style import style as _s
 from pprint import pprint
-from typing import List, Optional
+from typing import List
 
 # Constants
 MULTICAST = ("239.255.255.250", 1900)
@@ -24,15 +24,15 @@ WANIP_URN = 'urn:schemas-upnp-org:service:WANIPConn1'
 
 # Class
 class IGD:
-    def __init__(self, *, loop: Optional[asyncio.AbstractEventLoop] = None):
+    def __init__(self):
         # Attributes
         self._loop = loop or asyncio.get_event_loop()
         self._searching = False
 
         # - ssdp
-        self.ssdp = SSDPServer(MULTICAST, ttl=TTL, loop=self._loop)
+        self.ssdp = SSDPServer(MULTICAST, ttl=TTL)
 
-        self.store = SSDPStore(loop=loop)
+        self.store = SSDPStore()
         self.store.connect_to(self.ssdp)
 
     # Methods
@@ -60,7 +60,7 @@ def get_ip() -> str:
 
 async def main(loop: asyncio.AbstractEventLoop, ip: str, port: int):
     # Init service
-    igd = IGD(loop=loop)
+    igd = IGD()
     await igd.init()
 
     # Find gateways

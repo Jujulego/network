@@ -1,7 +1,7 @@
 import aiohttp
 import logging
 
-from network.base import BaseSession
+from network.base.session import BaseSession
 from typing import Dict, Optional
 
 from .error import SOAPError

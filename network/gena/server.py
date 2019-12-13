@@ -2,7 +2,7 @@ import aiohttp
 import logging
 
 from aiohttp import web
-from network.base import BaseSession
+from network.base.session import BaseSession
 from network.utils.str import generate_random_str
 from typing import Dict, Optional
 

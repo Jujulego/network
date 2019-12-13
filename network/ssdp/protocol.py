@@ -19,8 +19,8 @@ class SSDPProtocol(asyncio.DatagramProtocol, EventEmitter):
     Receive SSDP messages from the given multicast
     """
 
-    def __init__(self, multicast: Address, *, ttl: int = 4, loop: Optional[asyncio.AbstractEventLoop] = None):
-        super().__init__(loop=loop)
+    def __init__(self, multicast: Address, ttl: int = 4):
+        super().__init__()
 
         # Attributes
         self.transport = None  # type: Optional[asyncio.transports.DatagramTransport]

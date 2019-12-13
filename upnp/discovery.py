@@ -16,16 +16,16 @@ TTL = 4
 
 # Class
 class UPnP:
-    def __init__(self, *, auto_search: Optional[str] = None, loop: Optional[asyncio.AbstractEventLoop] = None):
+    def __init__(self, auto_search: Optional[str] = None):
         # Attributes
         self.auto_search = auto_search
         self._loop = loop or asyncio.get_event_loop()
         self._searching = False
 
         # - ssdp
-        self.ssdp = SSDPServer(MULTICAST, ttl=TTL, loop=self._loop)
+        self.ssdp = SSDPServer(MULTICAST, ttl=TTL)
 
-        self.store = SSDPStore(loop=loop)
+        self.store = SSDPStore()
         self.store.connect_to(self.ssdp)
 
         # Callbacks
@@ -50,14 +50,13 @@ class UPnP:
         print(f'{_s.bold}Down device:{_s.reset} {repr(device)}')
 
 
-async def start_cli(streams=None, *, loop=None):
+async def start_cli(streams=None):
     await interact(
-        streams=streams or get_standard_streams(use_stderr=False, loop=loop),
+        streams=streams or get_standard_streams(use_stderr=False),
         locals={
             'ssdp': upnp.ssdp,
             'store': upnp.store
-        },
-        loop=loop
+        }
     )
 
 
@@ -83,7 +82,7 @@ if __name__ == '__main__':
     # Start !
     loop = asyncio.get_event_loop()
 
-    upnp = UPnP(auto_search=args.search, loop=loop)
+    upnp = UPnP(auto_search=args.search)
     loop.run_until_complete(upnp.init())
 
     # CLI setup

@@ -14,14 +14,16 @@ logger = logging.getLogger("ssdp")
 
 # Class
 class WindowsSearchProtocol(EventEmitter):
-    def __init__(self, multicast: Address, *, ttl: int = 4, loop: Optional[asyncio.AbstractEventLoop] = None):
-        super().__init__(loop)
+    def __init__(self, multicast: Address, ttl: int = 4):
+        super().__init__()
 
         # Attributes
         self.multicast = multicast
         self.ttl = ttl
 
-        self.future = None  # type: Optional[asyncio.Future]
+        # - internals
+        self._loop = asyncio.get_event_loop()
+        self._future = None  # type: Optional[asyncio.Future]
 
     # Methods
     def _create_socket(self, request: SSDPMessage) -> socket.socket:
@@ -71,7 +73,7 @@ class WindowsSearchProtocol(EventEmitter):
     def send_message(self, request: SSDPMessage):
         assert request.method == 'M-SEARCH', f'Invalid search request: wrong message kind ({request.kind})'
 
-        self.future = self._loop.run_in_executor(None, self._send_message, request)
+        self._future = self._loop.run_in_executor(None, self._send_message, request)
 
     def close(self):
         pass
