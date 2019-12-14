@@ -8,7 +8,6 @@ from aiohttp import web
 from network.soap import SOAPError
 from network.ssdp import SSDPServer, SSDPStore, SSDPRemoteDevice
 from network.utils.style import style as _s
-from pprint import pprint
 from typing import List
 
 # Constants
@@ -21,7 +20,10 @@ IGD_URNS = [
     'urn:schemas-upnp-org:device:InternetGatewayDevice:1',
     'urn:schemas-upnp-org:device:InternetGatewayDevice:2'
 ]
-WANIP_URN = 'urn:schemas-upnp-org:service:WANIPConnection:1'
+WANIP_URNS = [
+    'urn:schemas-upnp-org:service:WANIPConnection:1',
+    'urn:schemas-upnp-org:service:WANIPConnection:2'
+]
 
 
 # Class
@@ -42,8 +44,18 @@ class IGD:
         await self.ssdp.start()
 
     async def search(self):
+        event = asyncio.Event()
+
+        @self.store.on('new')
+        def wait_gw(device: SSDPRemoteDevice):
+            print(f'{_s.bold}New device:{_s.reset} {repr(device)}')
+
+            if device.type in IGD_URNS:
+                event.set()
+
         protocol = await self.ssdp.search(*IGD_URNS)
         await protocol.wait('disconnected')
+        await event.wait()
 
     async def stop(self):
         await self.ssdp.stop()
@@ -89,7 +101,7 @@ async def main():
 
     # Get gateway with service
     for gw in gws:
-        services = gw.find_service(WANIP_URN, in_children=True)
+        services = gw.find_service(*WANIP_URNS, in_children=True)
 
         if len(services) > 0:
             service = services[0]
