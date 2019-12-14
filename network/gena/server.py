@@ -1,11 +1,11 @@
-import aiohttp
 import logging
 
 from aiohttp import web
 from network.base.server import BaseServer
-from network.base.session import BaseSession
 from network.utils.str import generate_random_str
 from typing import Dict, Optional
+
+from .session import GENASession
 
 # Constants
 CALLBACK_SIZE = 10
@@ -59,7 +59,7 @@ class GENAServer(BaseServer):
         await self._site.start()
         logger.info(f'GENA server started: {self._site.name}')
 
-    def get_session(self) -> 'GENASession':
+    def get_session(self) -> GENASession:
         cb = self._gen_callback()
         session = GENASession(cb, self)
 
@@ -85,41 +85,3 @@ class GENAServer(BaseServer):
             return None
 
         return self._site.name
-
-
-# Class
-class GENASession(BaseSession):
-    def __init__(self, callback: str, server: GENAServer):
-        # Attributes
-        self._callback = callback
-
-        self._server = server
-        self._session = None  # type: Optional[aiohttp.ClientSession]
-
-    # Methods
-    async def open(self):
-        self._session = aiohttp.ClientSession()
-
-        if not self._server.started:
-            await self._server.start()
-
-    async def handler(self, request: web.BaseRequest):
-        pass
-
-    async def subscribe(self, event: str, *vars: str, timeout: int = 3600):
-        assert self._session is not None, 'GENA session must be opened !'
-
-        # Send request
-        await self._session.request(
-            'SUBSCRIBE', event,
-            headers={
-                'CALLBACK': self._callback,
-                'NT': 'upnp:event',
-                'TIMEOUT': f'Second-{timeout}',
-                'STATEVAR': ','.join(vars)
-            }
-        )
-
-    async def close(self):
-        await self._session.close()
-        self._session = None

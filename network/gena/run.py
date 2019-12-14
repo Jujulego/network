@@ -1,4 +1,5 @@
-from .server import GENAServer, GENASession
+from .server import GENAServer
+from .session import GENASession
 
 __all__ = ['get_gena_server', 'get_gena_session']
 
