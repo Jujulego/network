@@ -4,6 +4,7 @@ import sys
 
 from network.base.emitter import EventEmitter
 from network.base.protocol import BaseProtocol
+from network.base.server import BaseServer
 from network.typing import Address
 from typing import Optional, Type
 
@@ -17,7 +18,7 @@ REUSE_PORT = True if hasattr(socket, 'SO_REUSEPORT') else None
 
 
 # Class
-class SSDPServer(EventEmitter):
+class SSDPServer(BaseServer, EventEmitter):
     def __init__(self, multicast: Address, ttl: int = 4):
         super().__init__()
 

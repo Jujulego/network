@@ -2,6 +2,7 @@ import aiohttp
 import logging
 
 from aiohttp import web
+from network.base.server import BaseServer
 from network.base.session import BaseSession
 from network.utils.str import generate_random_str
 from typing import Dict, Optional
@@ -14,7 +15,7 @@ logger = logging.getLogger('gena')
 
 
 # Class
-class GENAServer:
+class GENAServer(BaseServer):
     def __init__(self):
         # Attributes
         self._server = web.Server(self._handler)
