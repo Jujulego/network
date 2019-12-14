@@ -1,6 +1,5 @@
 import logging
 
-from network.gena import get_gena_session
 from network.soap import SOAPSession
 from network.base.machine import StateMachine
 from network.utils.style import style as _s
@@ -36,7 +35,6 @@ class SSDPService(StateMachine):
         self._logger = logging.getLogger(f'ssdp:service:{self.id}')
 
         # - protocols
-        self._gena = get_gena_session()
         self._soap = SOAPSession()
 
         # Parse xml
@@ -103,10 +101,6 @@ class SSDPService(StateMachine):
             py_resp[n] = var.type.to_python(v)
 
         return py_resp
-
-    async def subscribe(self, *vars: str, timeout: int = 3600):
-        async with self._gena as session:
-            await session.subscribe(self.event_sub, *vars, timeout=timeout)
 
     def update(self, xmld: ET.Element, xmls: ET.Element, base_url: str):
         # Resets
@@ -267,10 +261,6 @@ class StateVariable:
         return _s.blue(
             f'<StateVariable: {_s_type}{self.type} {_s.reset}{self.name}{_s.blue}>'
         )
-
-    # Methods
-    async def subscribe(self, timeout: int = 3600):
-        await self._service.subscribe(self.name, timeout=timeout)
 
 
 class ValueRange:

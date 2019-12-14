@@ -10,7 +10,6 @@ setup(
     version="0.1",
     packages=["network",
               "network.base",
-              "network.gena",
               "network.soap",
               "network.ssdp",
               "network.utils"],
