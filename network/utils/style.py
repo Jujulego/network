@@ -32,7 +32,7 @@ class EscapeCode:
         elif isinstance(other, str):
             return str(self) + other
 
-        return NotImplemented
+        return NotImplementedError
 
 
 class NoCode(EscapeCode):
@@ -49,7 +49,7 @@ class NoCode(EscapeCode):
         if isinstance(other, EscapeCode) or isinstance(other, str):
             return other
 
-        return NotImplemented
+        return NotImplementedError
 
 
 class Style:

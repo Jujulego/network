@@ -3,7 +3,7 @@ import logging
 import socket
 import struct
 
-from network.base.emitter import EventEmitter
+from network.base.protocol import BaseProtocol
 from network.typing import Address
 from typing import Optional, Union, Text
 
@@ -14,7 +14,7 @@ logger = logging.getLogger("ssdp")
 
 
 # Classes
-class SSDPProtocol(asyncio.DatagramProtocol, EventEmitter):
+class SSDPProtocol(BaseProtocol[SSDPMessage], asyncio.DatagramProtocol):
     """
     Receive SSDP messages from the given multicast
     """
@@ -57,10 +57,10 @@ class SSDPProtocol(asyncio.DatagramProtocol, EventEmitter):
         logger.debug(f'{addr[0]}:{addr[1]} => {data}')
         self.emit('recv', SSDPMessage(message=data.decode('utf-8')), addr)
 
-    def send_message(self, msg: SSDPMessage):
+    async def send(self, request: SSDPMessage):
         assert self.transport is not None
 
-        data = msg.message.encode()
+        data = request.message.encode()
 
         for _ in range(5):
             self.transport.sendto(data, self.multicast)
@@ -68,7 +68,7 @@ class SSDPProtocol(asyncio.DatagramProtocol, EventEmitter):
         # logging
         logger.debug(f'{self.multicast[0]}:{self.multicast[1]} <= {data}')
 
-    def close(self):
+    async def close(self):
         if self.transport is not None:
             self.transport.close()
             self.transport = None

@@ -3,8 +3,9 @@ import socket
 import sys
 
 from network.base.emitter import EventEmitter
+from network.base.protocol import BaseProtocol
 from network.typing import Address
-from typing import Optional, Type, Union
+from typing import Optional, Type
 
 from .message import SSDPMessage
 from .protocol import SSDPProtocol, SSDPSearchProtocol
@@ -62,9 +63,9 @@ class SSDPServer(EventEmitter):
 
     def send(self, msg: SSDPMessage):
         assert self.__started
-        self._protocol.send_message(msg)
+        self._protocol.send(msg)
 
-    async def search(self, *targets: str, mx: int = 5) -> Union[SSDPSearchProtocol, WindowsSearchProtocol]:
+    async def search(self, *targets: str, mx: int = 5) -> BaseProtocol[SSDPMessage]:
         # Prepare protocol
         if ON_WINDOWS:
             protocol = WindowsSearchProtocol(self.multicast, ttl=self.ttl)
@@ -90,7 +91,7 @@ class SSDPServer(EventEmitter):
                 }
             )
 
-            protocol.send_message(msg)
+            await protocol.send(msg)
 
         self._loop.call_later(mx * 2, protocol.close)
 
