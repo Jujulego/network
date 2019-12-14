@@ -75,6 +75,9 @@ def log_xml_errors(fun: Callable) -> Callable:
             except aiohttp.ClientError as err:
                 logger.error(f'Error while getting description: {err}')
 
+            except ET.ParseError as err:
+                logger.error(f'Error while parsing description: {err}')
+
             except AssertionError as err:
                 logger.error(str(err))
 
@@ -90,6 +93,9 @@ def log_xml_errors(fun: Callable) -> Callable:
 
             except aiohttp.ClientError as err:
                 logger.error(f'Error while getting description: {err}')
+
+            except ET.ParseError as err:
+                logger.error(f'Error while parsing description: {err}')
 
             except AssertionError as err:
                 logger.error(str(err))
