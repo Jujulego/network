@@ -94,7 +94,7 @@ class SSDPServer(BaseServer, EventEmitter):
 
             await protocol.send(msg)
 
-        self._loop.call_later(mx * 2, protocol.close)
+        self._loop.call_later(mx * 2, lambda: self._loop.run_until_complete(protocol.close()))
 
         return protocol
 

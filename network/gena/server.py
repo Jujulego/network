@@ -19,7 +19,7 @@ class GENAServer(BaseServer):
     def __init__(self):
         # Attributes
         self._server = web.Server(self._handler)
-        self._site = None  # type: Optional[web.TCPSite]
+        self._site = None    # type: Optional[web.TCPSite]
         self._runner = None  # type: Optional[web.ServerRunner]
         self._sessions = {}  # type: Dict[str, GENASession]
 
