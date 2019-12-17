@@ -3,7 +3,8 @@ import logging
 from aiohttp import web
 from network.base.server import BaseServer
 from network.utils.str import generate_random_str
-from typing import Dict, Optional
+from typing import Optional
+from weakref import WeakValueDictionary
 
 from .session import GENASession
 
@@ -21,7 +22,7 @@ class GENAServer(BaseServer):
         self._server = web.Server(self._handler)
         self._site = None    # type: Optional[web.TCPSite]
         self._runner = None  # type: Optional[web.ServerRunner]
-        self._sessions = {}  # type: Dict[str, GENASession]
+        self._sessions = WeakValueDictionary()
 
     # Methods
     def _gen_callback(self) -> str:

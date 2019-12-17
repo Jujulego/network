@@ -4,13 +4,13 @@ from .session import GENASession
 __all__ = ['get_gena_server', 'get_gena_session']
 
 # Constants
-running_server = GENAServer()
+_server = GENAServer()
 
 
 # Utils
 def get_gena_server() -> GENAServer:
-    return running_server
+    return _server
 
 
 def get_gena_session() -> GENASession:
-    return running_server.get_session()
+    return _server.get_session()
