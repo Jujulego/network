@@ -28,14 +28,11 @@ class GENASession(BaseSession):
     async def handler(self, request: web.BaseRequest):
         pass
 
-    async def _subscribe(self, event: str, headers: Dict[str, str]):
+    async def _request(self, method: str, event: str, headers: Dict[str, str]):
         assert self._session is not None, 'GENA session must be opened !'
 
         # Send request
-        res = await self._session.request(
-            'SUBSCRIBE', event,
-            headers=headers
-        )
+        res = await self._session.request(method, event, headers=headers)
 
         # Parse response
         if res.status == 200:
@@ -48,7 +45,7 @@ class GENASession(BaseSession):
         elif res.status == 412:
             raise GENAError(412, 'Precondition Failed')
 
-        elif 500 <= res.status < 600:
+        elif method == 'SUBSCRIBE' and 500 <= res.status < 600:
             raise GENAError(res.status, 'Unable to accept renewal')
 
         else:
@@ -56,7 +53,7 @@ class GENASession(BaseSession):
 
     async def subscribe(self, event: str, *variables: str, timeout: int = 1800) -> GENASubscription:
         # Request
-        res = await self._subscribe(event, {
+        res = await self._request('SUBSCRIBE', event, {
             'NT': 'upnp:event',
             'CALLBACK': self._callback,
             'TIMEOUT': f'Second-{timeout}',
@@ -67,18 +64,32 @@ class GENASession(BaseSession):
         return GENASubscription(event, res)
 
     async def renew(self, sub: GENASubscription, *, timeout: Optional[int] = None) -> GENASubscription:
+        assert not sub.expired, 'GENA subscription has expired'
+
         if timeout is None:
             timeout = sub.timeout
 
         # Request
-        res = await self._subscribe(sub.event, {
-            'SID': sub.id,
+        res = await self._request('SUBSCRIBE', sub.event, {
+            'SID': f'uuid:{sub.id}',
             'TIMEOUT': f'Second-{timeout}'
         })
 
         # Parse answer
         sub._update(res)
+        return sub
 
+    async def unsubscribe(self, sub: GENASubscription) -> GENASubscription:
+        if sub.expired:
+            return sub
+
+        # Request
+        await self._request('UNSUBSCRIBE', sub.event, {
+            'SID': f'uuid:{sub.id}',
+        })
+
+        # Success
+        sub._end()
         return sub
 
     async def close(self):

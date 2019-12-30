@@ -27,12 +27,9 @@ class GENASubscription(StateMachine):
         return False
 
     # Methods
-    def _end(self):
-        self.state = 'invalid'
-
     def _update(self, res: ClientResponse):
         # Parse response
-        self.id = res.headers.getone('SID')
+        self.id = res.headers.getone('SID')[5:]
         self.date = res.headers.getone('DATE', None)
         self.timeout = int(res.headers.getone('TIMEOUT')[7:])
         self.variables = res.headers.getone('ACCEPTED-STATEVAR', '').split(',')
@@ -42,4 +39,18 @@ class GENASubscription(StateMachine):
             self.__invalid_handle.cancel()
 
         loop = asyncio.get_running_loop()
-        self.__invalid_handle = loop.call_later(self.timeout, self._end)
+        self.__invalid_handle = loop.call_later(self.timeout, self.__end)
+
+    def _end(self):
+        if self.__invalid_handle is not None:
+            self.__invalid_handle.cancel()
+
+        self.__end()
+
+    def __end(self):
+        self.state = 'invalid'
+
+    # Properties
+    @property
+    def expired(self) -> bool:
+        return self.state == 'invalid'
