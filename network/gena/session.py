@@ -17,12 +17,10 @@ class GENASession(BaseSession):
 
         self._server = server
         self._session = None  # type: Optional[aiohttp.ClientSession]
-        self._subscriptions = {}  # type: Dict[GENASubscription]
 
     # Methods
     async def open(self):
         self._session = aiohttp.ClientSession()
-        self._subscriptions = {}
 
         if not self._server.started:
             await self._server.start()
@@ -30,26 +28,18 @@ class GENASession(BaseSession):
     async def handler(self, request: web.BaseRequest):
         pass
 
-    async def subscribe(self, event: str, *variables: str, timeout: int = 1800) -> GENASubscription:
+    async def _subscribe(self, event: str, headers: Dict[str, str]):
         assert self._session is not None, 'GENA session must be opened !'
 
         # Send request
         res = await self._session.request(
             'SUBSCRIBE', event,
-            headers={
-                'CALLBACK': self._callback,
-                'NT': 'upnp:event',
-                'TIMEOUT': f'Second-{timeout}',
-                'STATEVAR': ','.join(variables)
-            }
+            headers=headers
         )
 
         # Parse response
         if res.status == 200:
-            sub = GENASubscription(res)
-            self._subscriptions[sub.id] = sub
-
-            return sub
+            return res
 
         # Errors
         if res.status == 400:
@@ -63,6 +53,33 @@ class GENASession(BaseSession):
 
         else:
             raise GENAError(res.status, 'Unknown error')
+
+    async def subscribe(self, event: str, *variables: str, timeout: int = 1800) -> GENASubscription:
+        # Request
+        res = await self._subscribe(event, {
+            'NT': 'upnp:event',
+            'CALLBACK': self._callback,
+            'TIMEOUT': f'Second-{timeout}',
+            'STATEVAR': ','.join(variables)
+        })
+
+        # Parse answer
+        return GENASubscription(event, res)
+
+    async def renew(self, sub: GENASubscription, *, timeout: Optional[int] = None) -> GENASubscription:
+        if timeout is None:
+            timeout = sub.timeout
+
+        # Request
+        res = await self._subscribe(sub.event, {
+            'SID': sub.id,
+            'TIMEOUT': f'Second-{timeout}'
+        })
+
+        # Parse answer
+        sub._update(res)
+
+        return sub
 
     async def close(self):
         await self._session.close()
