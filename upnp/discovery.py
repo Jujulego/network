@@ -89,7 +89,7 @@ if __name__ == '__main__':
     if not args.no_cli:
         if args.serve:
             host, port = parse_server(args.serve, parser)
-            task = asyncio.start_server(lambda r, w: start_cli(streams=(r, w)), host, port, loop=loop)
+            task = asyncio.start_server(lambda r, w: start_cli(streams=(r, w)), host, port)
 
         else:
             task = start_cli()

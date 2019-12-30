@@ -1,4 +1,5 @@
 import aiohttp
+import asyncio
 
 from aiohttp import web
 from network.base.session import BaseSession
@@ -17,17 +18,9 @@ class GENASession(BaseSession):
 
         self._server = server
         self._session = None  # type: Optional[aiohttp.ClientSession]
+        self._subscriptions = {}  # type: Dict[str, GENASubscription]
 
     # Methods
-    async def open(self):
-        self._session = aiohttp.ClientSession()
-
-        if not self._server.started:
-            await self._server.start()
-
-    async def handler(self, request: web.BaseRequest):
-        pass
-
     async def _request(self, method: str, event: str, headers: Dict[str, str]):
         assert self._session is not None, 'GENA session must be opened !'
 
@@ -51,6 +44,16 @@ class GENASession(BaseSession):
         else:
             raise GENAError(res.status, 'Unknown error')
 
+    async def open(self):
+        self._session = aiohttp.ClientSession()
+        self._subscriptions = {}
+
+        if not self._server.started:
+            await self._server.start()
+
+    async def handler(self, request: web.BaseRequest):
+        pass
+
     async def subscribe(self, event: str, *variables: str, timeout: int = 1800) -> GENASubscription:
         # Request
         res = await self._request('SUBSCRIBE', event, {
@@ -61,7 +64,10 @@ class GENASession(BaseSession):
         })
 
         # Parse answer
-        return GENASubscription(event, res)
+        sub = GENASubscription(event, res)
+        self._subscriptions[sub.id] = sub
+
+        return sub
 
     async def renew(self, sub: GENASubscription, *, timeout: Optional[int] = None) -> GENASubscription:
         assert not sub.expired, 'GENA subscription has expired'
@@ -90,8 +96,16 @@ class GENASession(BaseSession):
 
         # Success
         sub._end()
+        del self._subscriptions[sub.id]
+
         return sub
 
     async def close(self):
+        # Unsubscribe all subscriptions
+        await asyncio.gather(
+            self.unsubscribe(sub) for sub in self._subscriptions.values()
+        )
+
+        # Close session
         await self._session.close()
         self._session = None
