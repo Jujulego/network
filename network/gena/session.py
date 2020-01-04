@@ -10,15 +10,13 @@ from typing import Dict, Optional
 from .error import GENAError
 from .subscription import GENASubscription
 
-# Logging
-logger = logging.getLogger('gena')
-
 
 # Class
 class GENASession(BaseSession):
     def __init__(self, callback: str, server: BaseServer):
         # Attributes
         self._callback = callback
+        self._logger = logging.getLogger(f'gena:{self._callback}')
 
         self._server = server
         self._session = None  # type: Optional[aiohttp.ClientSession]
@@ -65,9 +63,9 @@ class GENASession(BaseSession):
             if not sub.expired:
                 sub._handler(request)
             else:
-                logger.warning(f'Received notify for expired subscription: {sid}')
+                self._logger.warning(f'Received notify for expired subscription: {sid}')
         else:
-            logger.warning(f'Received notify for unknown subscription: {sid}')
+            self._logger.warning(f'Received notify for unknown subscription: {sid}')
 
     async def subscribe(self, event: str, *variables: str, timeout: int = 1800) -> GENASubscription:
         # Request
