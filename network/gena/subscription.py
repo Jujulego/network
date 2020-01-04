@@ -1,6 +1,6 @@
 import asyncio
 
-from aiohttp import ClientResponse
+from aiohttp import web, ClientResponse
 from network.base.machine import StateMachine
 from typing import Optional
 
@@ -27,6 +27,9 @@ class GENASubscription(StateMachine):
         return False
 
     # Methods
+    def _handler(self, request: web.BaseRequest):
+        pass
+
     def _update(self, res: ClientResponse):
         # Parse response
         self.id = res.headers.getone('SID')[5:]

@@ -1,5 +1,6 @@
 import aiohttp
 import asyncio
+import logging
 
 from aiohttp import web
 from network.base.session import BaseSession
@@ -8,6 +9,9 @@ from typing import Dict, Optional
 
 from .error import GENAError
 from .subscription import GENASubscription
+
+# Logging
+logger = logging.getLogger('gena')
 
 
 # Class
@@ -52,7 +56,18 @@ class GENASession(BaseSession):
             await self._server.start()
 
     async def handler(self, request: web.BaseRequest):
-        pass
+        sid = request.headers.getone('SID')
+
+        # Transfer to subscription
+        if sid and sid in self._subscriptions:
+            sub = self._subscriptions[sid]
+
+            if not sub.expired:
+                sub._handler(request)
+            else:
+                logger.warning(f'Received notify for expired subscription: {sid}')
+        else:
+            logger.warning(f'Received notify for unknown subscription: {sid}')
 
     async def subscribe(self, event: str, *variables: str, timeout: int = 1800) -> GENASubscription:
         # Request

@@ -60,7 +60,7 @@ class GENAServer(BaseServer):
         await self._site.start()
         logger.info(f'GENA server started: {self._site.name}')
 
-    def get_session(self) -> GENASession:
+    def new_session(self) -> GENASession:
         cb = self._gen_callback()
         session = GENASession(cb, self)
 

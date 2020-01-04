@@ -13,4 +13,4 @@ def get_gena_server() -> GENAServer:
 
 
 def get_gena_session() -> GENASession:
-    return _server.get_session()
+    return _server.new_session()
