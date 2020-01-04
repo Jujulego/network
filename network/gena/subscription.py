@@ -52,7 +52,7 @@ class GENASubscription(StateMachine):
 
         return values
 
-    def _handler(self, request: web.BaseRequest):
+    async def _handler(self, request: web.BaseRequest):
         nt = request.headers.getone('NT')
         nts = request.headers.getone('NTS')
 

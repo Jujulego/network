@@ -61,7 +61,8 @@ class GENASession(BaseSession):
             sub = self._subscriptions[sid]
 
             if not sub.expired:
-                sub._handler(request)
+                await sub._handler(request)
+
             else:
                 self._logger.warning(f'Received notify for expired subscription: {sid}')
         else:

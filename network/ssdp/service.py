@@ -1,5 +1,4 @@
 import asyncio
-import inspect
 import math
 import logging
 
@@ -27,14 +26,11 @@ def xml_text(e: Optional[ET.Element]) -> Optional[str]:
 
 
 def call_later(delay, fun):
-    loop = asyncio.get_running_loop()
+    async def wait():
+        await asyncio.sleep(delay)
+        await fun()
 
-    # Manage coroutines
-    if inspect.iscoroutinefunction(fun):
-        fun = lambda: loop.run_until_complete(fun())
-
-    # Call it later
-    return loop.call_later(delay, fun)
+    return asyncio.create_task(wait())
 
 
 # Classes
@@ -307,7 +303,7 @@ class StateVariable(EventEmitter):
         # - internals
         self._service = service
         self._subscription = None    # type: Optional[GENASubscription]
-        self.__renew_handler = None  # type: Optional[asyncio.TimerHandle]
+        self.__renew_handler = None  # type: Optional[asyncio.Task]
 
     def __repr__(self):
         return _s.blue(
@@ -319,7 +315,8 @@ class StateVariable(EventEmitter):
         self.emit('update', self.type.to_python(value))
 
     def _sub_expired(self):
-        self.__renew_handler.cancel()
+        if self.__renew_handler is not None:
+            self.__renew_handler.cancel()
 
     async def _renew(self):
         await self._service.renew(self._subscription)
@@ -328,7 +325,7 @@ class StateVariable(EventEmitter):
         self.__renew_handler = call_later(delay, self._renew)
 
     async def subscribe(self, timeout: int = 3600):
-        if not self.subscribed:
+        if self.subscribed:
             return
 
         # Subscribe
@@ -344,6 +341,10 @@ class StateVariable(EventEmitter):
             self.__renew_handler = call_later(delay, self._renew)
 
     async def unsubscribe(self):
+        if not self.subscribed:
+            return
+
+        # Unsubscribe
         await self._service.unsubscribe(self._subscription)
 
     # Property

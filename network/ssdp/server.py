@@ -94,13 +94,17 @@ class SSDPServer(BaseServer, EventEmitter):
 
             await protocol.send(msg)
 
-        self._loop.call_later(mx * 2, lambda: self._loop.run_until_complete(protocol.close()))
+        async def close():
+            await asyncio.sleep(mx * 2)
+            await protocol.close()
+
+        self._loop.create_task(close())
 
         return protocol
 
     async def stop(self):
         if self.__started:
-            self._protocol.close()
+            await self._protocol.close()
 
             self._protocol = None
             self._transport = None
