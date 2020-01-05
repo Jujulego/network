@@ -20,6 +20,10 @@ IGD_URNS = [
     'urn:schemas-upnp-org:device:InternetGatewayDevice:1',
     'urn:schemas-upnp-org:device:InternetGatewayDevice:2'
 ]
+WAN_URNS = [
+    'urn:schemas-upnp-org:device:WANConnectionDevice:1',
+    'urn:schemas-upnp-org:device:WANConnectionDevice:2'
+]
 WANIP_URNS = [
     'urn:schemas-upnp-org:service:WANIPConnection:1',
     'urn:schemas-upnp-org:service:WANIPConnection:2'
@@ -100,16 +104,41 @@ async def main():
     await igd.stop()
 
     # Get gateway with service
+    event = asyncio.Event()
+
     for gw in gws:
-        services = gw.find_service(*WANIP_URNS, in_children=True)
+        devices = gw.find_device(*WAN_URNS, in_children=True)
+
+        if len(devices) == 0:
+            continue
+
+        device = devices[0]
+        services = device.find_service(*WANIP_URNS)
 
         if len(services) > 0:
             service = services[0]
             break
 
+        @device.on('new')
+        def new(service):
+            print(f'{_s.bold}New service:{_s.reset} {repr(service)}')
+
+            if service.type in WANIP_URNS:
+                event.set()
+
     else:
-        print(_s.red('No valid gateway found'))
-        return
+        print(_s.yellow('Wait for services'))
+        await event.wait()
+
+        for gw in gws:
+            services = gw.find_service(*WANIP_URNS, in_children=True)
+
+            if len(services) > 0:
+                service = services[0]
+                break
+        else:
+            print(_s.red('No valid gateway found'))
+            return
 
     # Get internal ip to the gateway
     ip = get_ip(gw)

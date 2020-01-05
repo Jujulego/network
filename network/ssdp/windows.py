@@ -2,7 +2,7 @@ import asyncio
 import logging
 import socket
 
-from network.base.emitter import EventEmitter
+from network.base.protocol import BaseProtocol
 from network.typing import Address
 from typing import Optional
 
@@ -13,7 +13,7 @@ logger = logging.getLogger("ssdp")
 
 
 # Class
-class WindowsSearchProtocol(EventEmitter):
+class WindowsSearchProtocol(BaseProtocol):
     def __init__(self, multicast: Address, ttl: int = 4):
         super().__init__()
 
@@ -70,10 +70,10 @@ class WindowsSearchProtocol(EventEmitter):
             logger.info(f'Disconnected from {self.multicast[0]}:{self.multicast[1]}')
             self.emit('disconnected')
 
-    def send_message(self, request: SSDPMessage):
+    async def send(self, request: SSDPMessage):
         assert request.method == 'M-SEARCH', f'Invalid search request: wrong message kind ({request.kind})'
 
         self._future = self._loop.run_in_executor(None, self._send_message, request)
 
-    def close(self):
+    async def close(self):
         pass

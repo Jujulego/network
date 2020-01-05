@@ -1,4 +1,4 @@
-from typing import Optional, Union
+from typing import Optional
 
 __all__ = ['style']
 
@@ -18,6 +18,9 @@ class EscapeCode:
         return style.blue(f'<Code: {self(codes)} ({self.name})>')
 
     def __str__(self):
+        if not style.enabled:
+            return ''
+
         codes = ';'.join(str(code) for code in self.codes)
 
         return f'\033[{codes}m'
@@ -32,24 +35,7 @@ class EscapeCode:
         elif isinstance(other, str):
             return str(self) + other
 
-        return NotImplemented
-
-
-class NoCode(EscapeCode):
-    def __repr__(self):
-        return style.blue('<NoCode>')
-
-    def __str__(self):
-        return ""
-
-    def __call__(self, txt: str):
-        return txt
-
-    def __add__(self, other):
-        if isinstance(other, EscapeCode) or isinstance(other, str):
-            return other
-
-        return NotImplemented
+        return NotImplementedError
 
 
 class Style:
@@ -58,44 +44,44 @@ class Style:
 
     # Properties
     @property
-    def reset(self) -> Union[EscapeCode, NoCode]:
-        return EscapeCode(name='reset') if self.enabled else NoCode()
+    def reset(self) -> EscapeCode:
+        return EscapeCode(name='reset')
 
     @property
-    def bold(self) -> Union[EscapeCode, str]:
-        return EscapeCode(1, name='bold') if self.enabled else NoCode()
+    def bold(self) -> EscapeCode:
+        return EscapeCode(1, name='bold')
 
     @property
-    def italic(self) -> Union[EscapeCode, str]:
-        return EscapeCode(3, name='italic') if self.enabled else NoCode()
+    def italic(self) -> EscapeCode:
+        return EscapeCode(3, name='italic')
 
     @property
-    def underline(self) -> Union[EscapeCode, str]:
-        return EscapeCode(4, name='underline') if self.enabled else NoCode()
+    def underline(self) -> EscapeCode:
+        return EscapeCode(4, name='underline')
 
     @property
-    def red(self) -> Union[EscapeCode, str]:
-        return EscapeCode(31, name='red') if self.enabled else NoCode()
+    def red(self) -> EscapeCode:
+        return EscapeCode(31, name='red')
 
     @property
-    def green(self) -> Union[EscapeCode, str]:
-        return EscapeCode(32, name='green') if self.enabled else NoCode()
+    def green(self) -> EscapeCode:
+        return EscapeCode(32, name='green')
 
     @property
-    def yellow(self) -> Union[EscapeCode, str]:
-        return EscapeCode(33, name='yellow') if self.enabled else NoCode()
+    def yellow(self) -> EscapeCode:
+        return EscapeCode(33, name='yellow')
 
     @property
-    def blue(self) -> Union[EscapeCode, str]:
-        return EscapeCode(34, name='blue') if self.enabled else NoCode()
+    def blue(self) -> EscapeCode:
+        return EscapeCode(34, name='blue')
 
     @property
-    def purple(self) -> Union[EscapeCode, str]:
-        return EscapeCode(35, name='purple') if self.enabled else NoCode()
+    def purple(self) -> EscapeCode:
+        return EscapeCode(35, name='purple')
 
     @property
-    def white(self) -> Union[EscapeCode, str]:
-        return EscapeCode(38, name='white') if self.enabled else NoCode()
+    def white(self) -> EscapeCode:
+        return EscapeCode(38, name='white')
 
 
 # Instance

@@ -38,7 +38,7 @@ class SSDPStore(EventEmitter):
         # - data
         self._tasks = {}    # type: Dict[str, asyncio.Task]
         self._devices = {}  # type: Dict[str, SSDPRemoteDevice]
-        self._sub_devices = WeakValueDictionary()  # type: WeakValueDictionary[str, SSDPRemoteDevice]
+        self._sub_devices = WeakValueDictionary()
 
     def __repr__(self):
         return f'<SSDPStore: {len(self)} devices>'

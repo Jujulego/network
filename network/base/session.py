@@ -13,8 +13,8 @@ class BaseSession(ABC):
     # Methods
     @abstractmethod
     async def open(self):
-        raise NotImplemented
+        raise NotImplementedError
 
     @abstractmethod
     async def close(self):
-        raise NotImplemented
+        raise NotImplementedError

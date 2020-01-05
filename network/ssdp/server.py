@@ -3,8 +3,10 @@ import socket
 import sys
 
 from network.base.emitter import EventEmitter
+from network.base.protocol import BaseProtocol
+from network.base.server import BaseServer
 from network.typing import Address
-from typing import Optional, Type, Union
+from typing import Optional, Type
 
 from .message import SSDPMessage
 from .protocol import SSDPProtocol, SSDPSearchProtocol
@@ -16,7 +18,7 @@ REUSE_PORT = True if hasattr(socket, 'SO_REUSEPORT') else None
 
 
 # Class
-class SSDPServer(EventEmitter):
+class SSDPServer(BaseServer, EventEmitter):
     def __init__(self, multicast: Address, ttl: int = 4):
         super().__init__()
 
@@ -62,9 +64,9 @@ class SSDPServer(EventEmitter):
 
     def send(self, msg: SSDPMessage):
         assert self.__started
-        self._protocol.send_message(msg)
+        self._protocol.send(msg)
 
-    async def search(self, *targets: str, mx: int = 5) -> Union[SSDPSearchProtocol, WindowsSearchProtocol]:
+    async def search(self, *targets: str, mx: int = 5) -> BaseProtocol[SSDPMessage]:
         # Prepare protocol
         if ON_WINDOWS:
             protocol = WindowsSearchProtocol(self.multicast, ttl=self.ttl)
@@ -90,15 +92,19 @@ class SSDPServer(EventEmitter):
                 }
             )
 
-            protocol.send_message(msg)
+            await protocol.send(msg)
 
-        self._loop.call_later(mx * 2, protocol.close)
+        async def close():
+            await asyncio.sleep(mx * 2)
+            await protocol.close()
+
+        self._loop.create_task(close())
 
         return protocol
 
     async def stop(self):
         if self.__started:
-            self._protocol.close()
+            await self._protocol.close()
 
             self._protocol = None
             self._transport = None

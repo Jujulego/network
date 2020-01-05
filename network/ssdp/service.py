@@ -1,7 +1,11 @@
+import asyncio
+import math
 import logging
 
-from network.soap import SOAPSession
+from network.base.emitter import EventEmitter
 from network.base.machine import StateMachine
+from network.gena import get_gena_session, GENASubscription
+from network.soap import SOAPSession
 from network.utils.style import style as _s
 from typing import Any, Dict, List, Optional, Union
 from urllib.parse import urljoin
@@ -21,8 +25,25 @@ def xml_text(e: Optional[ET.Element]) -> Optional[str]:
     return None if e is None else e.text
 
 
+def call_later(delay, fun):
+    async def wait():
+        await asyncio.sleep(delay)
+        await fun()
+
+    return asyncio.create_task(wait())
+
+
 # Classes
 class SSDPService(StateMachine):
+    """
+    class SSDPService:
+    Represent and interacts with a SSDP service
+
+    Events:
+    - up (was: str)   : each time the service goes to the state 'up' (was is the previous state)
+    - down (was: str) : each time the service goes to the state 'down' (was is the previous state)
+    """
+
     def __init__(self, xmld: ET.Element, xmls: ET.Element, base_url: str):
         super().__init__('down')
 
@@ -30,8 +51,9 @@ class SSDPService(StateMachine):
         self.id = get_service_id(xmld, base_url)
 
         # - internals
-        self._actions = {}  # type: Dict[str, Action]
-        self._state = {}    # type: Dict[str, StateVariable]
+        self._actions = {}        # type: Dict[str, Action]
+        self._state = {}          # type: Dict[str, StateVariable]
+        self._subscriptions = {}  # type: Dict[str, GENASubscription]
         self._logger = logging.getLogger(f'ssdp:service:{self.id}')
 
         # - protocols
@@ -40,6 +62,10 @@ class SSDPService(StateMachine):
         # Parse xml
         self._parse_xml_device(xmld, base_url)
         self._parse_xml_service(xmls)
+
+        # Setup callbacks
+        self.on('up', self._on_up)
+        self.on('down', self._on_down)
 
         # Set state
         self.state = 'up'
@@ -78,6 +104,15 @@ class SSDPService(StateMachine):
             state_var = StateVariable(child, self)
             self._state[state_var.name] = state_var
 
+    async def _on_up(self, was: str):
+        # Open GENA session
+        self._subscriptions = {}
+        await self._gena.open()
+
+    async def _on_down(self, was: str):
+        # Close GENA session
+        await self._gena.close()
+
     async def call(self, action: Union[str, 'Action'], args: Dict[str, Any]) -> Dict[str, Any]:
         if isinstance(action, str):
             action = self.action(action)
@@ -101,6 +136,15 @@ class SSDPService(StateMachine):
             py_resp[n] = var.type.to_python(v)
 
         return py_resp
+
+    async def subscribe(self, var: str, *, timeout: int = 3600) -> GENASubscription:
+        return await self._gena.subscribe(self.event_sub, var, timeout=timeout)
+
+    async def renew(self, sub: GENASubscription, *, timeout: Optional[int] = None) -> GENASubscription:
+        return await self._gena.renew(sub, timeout=timeout)
+
+    async def unsubscribe(self, sub: GENASubscription) -> GENASubscription:
+        return await self._gena.unsubscribe(sub)
 
     def update(self, xmld: ET.Element, xmls: ET.Element, base_url: str):
         # Resets
@@ -229,14 +273,16 @@ class Argument:
         return self.state_variable.type
 
 
-class StateVariable:
+class StateVariable(EventEmitter):
     def __init__(self, xml: ET.Element, service: SSDPService):
+        super().__init__()
+
         # Attributes
         self.send_events = xml.attrib.get('sendEvents', 'yes') == 'yes'
         self.multicast = xml.attrib.get('multicast', 'no') == 'yes'
 
         self.name = xml.find('upnp:name', XML_SERVICE_NS).text
-        self.default_value = xml_text(xml.find('upnp:defaultValue', XML_SERVICE_NS))
+        self._default_value = xml_text(xml.find('upnp:defaultValue', XML_SERVICE_NS))
 
         xtype = xml.find('upnp:dataType', XML_SERVICE_NS)
         self.type = get_type(xtype.attrib.get('type', xtype.text))
@@ -255,12 +301,66 @@ class StateVariable:
 
         # - internals
         self._service = service
-        self._value = None
+        self._subscription = None    # type: Optional[GENASubscription]
+        self.__renew_handler = None  # type: Optional[asyncio.Task]
 
     def __repr__(self):
         return _s.blue(
             f'<StateVariable: {_s_type}{self.type} {_s.reset}{self.name}{_s.blue}>'
         )
+
+    # Methods
+    def _sub_update(self, value: str, seq: int):
+        self.emit('update', self.type.to_python(value))
+
+    def _sub_expired(self):
+        if self.__renew_handler is not None:
+            self.__renew_handler.cancel()
+
+    async def _renew(self):
+        await self._service.renew(self._subscription)
+
+        delay = math.floor(self._subscription.timeout * 0.8)
+        self.__renew_handler = call_later(delay, self._renew)
+
+    async def subscribe(self, timeout: int = 3600):
+        if self.subscribed:
+            return
+
+        # Subscribe
+        sub = await self._service.subscribe(self.name, timeout=timeout)
+        sub.on('update', self._sub_update)
+        sub.on('expired', self._sub_expired)
+
+        self._subscription = sub
+
+        # Automatic renew
+        if timeout > 0:
+            delay = math.floor(timeout * 0.8)
+            self.__renew_handler = call_later(delay, self._renew)
+
+    async def unsubscribe(self):
+        if not self.subscribed:
+            return
+
+        # Unsubscribe
+        await self._service.unsubscribe(self._subscription)
+
+    # Property
+    @property
+    def default_value(self):
+        return self.type.to_python(self._default_value)
+
+    @property
+    def subscribed(self):
+        return self._subscription is not None and not self._subscription.expired
+
+    @property
+    def value(self):
+        if self._subscription is None:
+            return self.default_value
+
+        return self.type.to_python(self._subscription.value[self.name])
 
 
 class ValueRange:
