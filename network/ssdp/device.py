@@ -169,6 +169,21 @@ class SSDPRemoteDevice(RemoteDevice):
     def service(self, sid: str) -> SSDPService:
         return self._services[sid]
 
+    def find_device(self, *dtype: Union[str, URN], in_children: bool = False) -> List['SSDPRemoteDevice']:
+        results = []
+
+        # Search in children
+        for d in self._children.values():
+            if d.type in dtype:
+                results.append(d)
+
+        # Search in children's children
+        if in_children:
+            for c in self._children.values():
+                results.extend(c.find_device(*dtype, in_children=in_children))
+
+        return results
+
     def find_service(self, *stype: Union[str, URN], in_children: bool = False) -> List[SSDPService]:
         results = []
 
