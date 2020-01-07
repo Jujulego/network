@@ -57,6 +57,7 @@ class SSDPService(StateMachine):
         self._logger = logging.getLogger(f'ssdp:service:{self.id}')
 
         # - protocols
+        self._gena = get_gena_session()
         self._soap = SOAPSession()
 
         # Parse xml

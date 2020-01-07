@@ -7,7 +7,7 @@ with open('requirements.txt') as f:
 # Setup package
 setup(
     name="network",
-    version="1.1",
+    version="1.1.1",
     packages=["network",
               "network.base",
               "network.soap",
