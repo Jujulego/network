@@ -64,44 +64,50 @@ async def get_service_xml(xmld: ET.Element, url: str) -> (ET.Element, str):
     return xmls, sid
 
 
-# Decorator
-def log_xml_errors(fun: Callable) -> Callable:
-    if inspect.iscoroutinefunction(fun):
-        @wraps(fun)
-        async def deco(*args, **kwargs):
-            try:
-                return await fun(*args, **kwargs)
+# Decorators
+def _log_xml_errors(fun: Callable) -> Callable:
+    @wraps(fun)
+    def deco(*args, **kwargs):
+        try:
+            return fun(*args, **kwargs)
 
-            except aiohttp.ClientError as err:
-                logger.error(f'Error while getting description: {err}')
+        except aiohttp.ClientError as err:
+            logger.error(f'Error while getting description: {err}')
 
-            except ET.ParseError as err:
-                logger.error(f'Error while parsing description: {err}')
+        except ET.ParseError as err:
+            logger.error(f'Error while parsing description: {err}')
 
-            except AssertionError as err:
-                logger.error(str(err))
+        except AssertionError as err:
+            logger.error(str(err))
 
-            except Exception:
-                logger.exception(f'Error while getting description')
-                raise
-
-    else:
-        @wraps(fun)
-        def deco(*args, **kwargs):
-            try:
-                return fun(*args, **kwargs)
-
-            except aiohttp.ClientError as err:
-                logger.error(f'Error while getting description: {err}')
-
-            except ET.ParseError as err:
-                logger.error(f'Error while parsing description: {err}')
-
-            except AssertionError as err:
-                logger.error(str(err))
-
-            except Exception:
-                logger.exception(f'Error while getting description')
-                raise
+        except Exception:
+            logger.exception(f'Error while getting description')
+            raise
 
     return deco
+
+
+def _alog_xml_errors(fun: Callable) -> Callable:
+    @wraps(fun)
+    async def deco(*args, **kwargs):
+        try:
+            return await fun(*args, **kwargs)
+
+        except aiohttp.ClientError as err:
+            logger.error(f'Error while getting description: {err}')
+
+        except ET.ParseError as err:
+            logger.error(f'Error while parsing description: {err}')
+
+        except AssertionError as err:
+            logger.error(str(err))
+
+        except Exception:
+            logger.exception(f'Error while getting description')
+            raise
+
+    return deco
+
+
+def log_xml_errors(fun: Callable) -> Callable:
+    return _alog_xml_errors(fun) if inspect.iscoroutinefunction(fun) else _log_xml_errors(fun)

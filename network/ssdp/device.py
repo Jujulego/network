@@ -86,23 +86,30 @@ class SSDPRemoteDevice(RemoteDevice):
 
             elif tag == 'UDN':
                 pass
-            elif tag == 'serviceList':
-                for xs in child:
-                    sid = get_service_id(xs, self.location)
 
-                    if sid not in self._tasks or self._tasks[sid].done():
-                        task = self._loop.create_task(self._update_service(xs))
-                        self._tasks[sid] = task
+            elif tag == 'serviceList':
+                self._parse_service_list(child)
 
             elif tag == 'deviceList':
-                for xd in child:
-                    self._update_sub_device(xd, msg)
+                self._parse_device_list(child, msg)
 
             elif tag == 'iconList':
                 pass
 
             elif child.text is not None:
                 self.metadata[tag] = child.text.strip()
+
+    def _parse_service_list(self, xml: ET.Element):
+        for xs in xml:
+            sid = get_service_id(xs, self.location)
+
+            if sid not in self._tasks or self._tasks[sid].done():
+                task = self._loop.create_task(self._update_service(xs))
+                self._tasks[sid] = task
+
+    def _parse_device_list(self, xml: ET.Element, msg: SSDPMessage):
+        for xd in xml:
+            self._update_sub_device(xd, msg)
 
     @log_xml_errors
     async def _update_service(self, xmld: ET.Element):
