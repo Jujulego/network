@@ -10,7 +10,9 @@ from network.utils.style import style as _s
 from typing import List
 
 # Constants
-APP_PORT = 8000
+PROTOCOL = 'TCP'
+INT_PORT = 8000
+EXT_PORT = 8000
 
 MULTICAST = ("239.255.255.250", 1900)
 TTL = 4
@@ -150,14 +152,16 @@ async def main():
         # Open external port
         await service.action('AddPortMapping')(
             NewRemoteHost='',
-            NewExternalPort=APP_PORT,
-            NewProtocol='TCP',
-            NewInternalPort=APP_PORT,
+            NewExternalPort=EXT_PORT,
+            NewProtocol=PROTOCOL,
+            NewInternalPort=INT_PORT,
             NewInternalClient=ip,
             NewEnabled='1',
-            NewPortMappingDescription='test igd',
+            NewPortMappingDescription='test vpn',
             NewLeaseDuration=3600
         )
+
+        print(_s.green(f'Redirection active : {ext_ip}:{EXT_PORT} => {ip}:{INT_PORT}'))
     except SOAPError as err:
         print(_s.red(f'SOAPError: {err}'))
 
