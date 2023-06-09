@@ -1,4 +1,4 @@
 aioconsole ==0.3.3
 aiohttp ==3.8.1
 asyncio ==3.4.3
-pyee ==9.0.4
+pyee ==10.0.1
